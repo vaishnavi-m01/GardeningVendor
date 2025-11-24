@@ -22,6 +22,9 @@ interface AppHeaderProps {
   searchPlaceholder?: string;
   searchValue?: string;
   onSearchChange?: (text: string) => void;
+  onSearchFocus?: () => void;
+  onSearchBlur?: () => void;
+  onSearchSubmit?: () => void;
   showStats?: boolean;
   statsData?: HeaderStat[];
   gradient?: boolean;
@@ -40,6 +43,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   searchPlaceholder = "Search...",
   searchValue,
   onSearchChange,
+  onSearchFocus,
+  onSearchBlur,
+  onSearchSubmit,
   showStats = false,
   statsData = [],
   gradient = true,
@@ -61,7 +67,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   return (
     <Wrapper {...(wrapperProps as any)} className="px-5 pt-12 pb-4 shadow-md">
       <View className="flex-row justify-between items-center mb-3">
-        {/* ✅ Left Button - works for both menu & back */}
         {(showBack || leftIcon) ? (
           <TouchableOpacity
             onPress={onLeftPress || (() => navigation.goBack())}
@@ -122,7 +127,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             placeholder={searchPlaceholder}
             value={searchValue}
             onChangeText={onSearchChange}
+            onFocus={onSearchFocus}
+            onBlur={onSearchBlur}
+            onSubmitEditing={onSearchSubmit}
             placeholderTextColor="#999"
+            returnKeyType="search"
             className="flex-1 ml-2 text-gray-700 text-sm"
           />
         </View>

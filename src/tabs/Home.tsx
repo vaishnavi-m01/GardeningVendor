@@ -494,7 +494,7 @@ const Home = () => {
 
           <View className="flex-row flex-wrap justify-between gap-3">
             {[
-              { icon: "📦", title: "Products", subtitle: "Manage inventory", action: () => navigation.navigate("Products",), color: "#fbbf24" },
+              { icon: "📦", title: "Products", subtitle: "Manage inventory", action: () => navigation.navigate("Products", { type: "Product" }), color: "#fbbf24" },
               { icon: "🛠️", title: "Services", subtitle: "Service catalog", action: () => navigation.navigate("Products", { type: "Service" }), color: "#60a5fa" },
               { icon: "➕", title: "Add Product", subtitle: "List new item", action: () => navigation.navigate("AddProductForm"), color: "#34d399" },
               { icon: "📊", title: "Analytics", subtitle: "View reports", action: () => navigation.navigate("Analytics"), color: "#f472b6" },
@@ -530,7 +530,7 @@ const Home = () => {
         </View>
 
         {/* RECENT ACTIVITY */}
-        <View className="mt-8 mb-2">
+        {/* <View className="mt-8 mb-2">
           <View className="mb-5">
             <Text className="text-[16px] font-bold text-gray-900">Recent Activity</Text>
             <View className="h-1 w-12 bg-[#40916c] rounded-full mt-1" />
@@ -567,7 +567,121 @@ const Home = () => {
               <Text className="text-gray-300 text-lg">→</Text>
             </View>
           ))}
+        </View> */}
+
+        {/* RECENT ACTIVITY */}
+        <View className="mt-8 mb-2">
+          <View className="mb-5">
+            <Text className="text-[16px] font-bold text-gray-900">Recent Activity</Text>
+            <View className="h-1 w-12 bg-[#40916c] rounded-full mt-1" />
+          </View>
+
+          {/* New 5-star Reviews - Static */}
+          <TouchableOpacity
+            className="flex-row bg-white rounded-2xl p-4 mb-3 items-center border border-gray-100"
+            style={{
+              shadowColor: "#40916c",
+              shadowOpacity: 0.06,
+              shadowOffset: { width: 0, height: 3 },
+              shadowRadius: 6,
+              elevation: 2,
+            }}
+            activeOpacity={0.7}
+          // onPress={() => navigation.navigate("Reviews")}
+          >
+            <View
+              className="w-12 h-12 rounded-lg items-center justify-center mr-4"
+              style={{ backgroundColor: "#fbbf2415" }}
+            >
+              <Text className="text-xl">⭐</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-[13px] font-semibold text-gray-900 mb-1">
+                2 New 5-star reviews received
+              </Text>
+              <Text className="text-[11px] text-gray-400">Just now</Text>
+            </View>
+            <Text className="text-gray-300 text-lg">→</Text>
+          </TouchableOpacity>
+
+
+          {/* Customer inquiries */}
+          <TouchableOpacity
+            className="flex-row bg-white rounded-2xl p-4 mb-3 items-center border border-gray-100"
+            style={{
+              shadowColor: "#40916c",
+              shadowOpacity: 0.06,
+              shadowOffset: { width: 0, height: 3 },
+              shadowRadius: 6,
+              elevation: 2,
+            }}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("Messages")}
+          >
+            <View
+              className="w-12 h-12 rounded-lg items-center justify-center mr-4"
+              style={{ backgroundColor: "#60a5fa15" }}
+            >
+              <Text className="text-xl">💬</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-[13px] font-semibold text-gray-900 mb-1">
+                Customer inquiry received
+              </Text>
+              <Text className="text-[11px] text-gray-400">4 hours ago</Text>
+            </View>
+            <Text className="text-gray-300 text-lg">→</Text>
+          </TouchableOpacity>
+
+
+
+          {/* Latest Orders */}
+          {orders.length > 0 && (() => {
+            const order = orders[0]; // pick the most recent order
+            const orderDate = new Date(order.createdDate);
+            const now = new Date();
+            const diffMs = now.getTime() - orderDate.getTime();
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+            let timeAgo = "";
+            if (diffHours > 0) timeAgo = `${diffHours} hours ago`;
+            else if (diffMinutes > 0) timeAgo = `${diffMinutes} minutes ago`;
+            else timeAgo = "Just now";
+
+            return (
+              <TouchableOpacity
+                key={order.id}
+                className="flex-row bg-white rounded-2xl p-4 mb-3 items-center border border-gray-100"
+                style={{
+                  shadowColor: "#40916c",
+                  shadowOpacity: 0.06,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowRadius: 6,
+                  elevation: 2,
+                }}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate("Orders", { orderId: order.id })}
+              >
+                <View
+                  className="w-12 h-12 rounded-lg items-center justify-center mr-4"
+                  style={{ backgroundColor: "#34d39915" }}
+                >
+                  <Text className="text-xl">✅</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[13px] font-semibold text-gray-900 mb-1">
+                    Order #{order.productOrderId} {order.orderStatus.toLowerCase()}
+                  </Text>
+                  <Text className="text-[11px] text-gray-400">{timeAgo}</Text>
+                </View>
+                <Text className="text-gray-300 text-lg">→</Text>
+              </TouchableOpacity>
+            );
+          })()}
+
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );

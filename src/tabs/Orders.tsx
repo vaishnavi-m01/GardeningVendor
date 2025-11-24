@@ -19,6 +19,8 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navig
 import Toast from "react-native-toast-message";
 import { useVendor } from "../context/VendorContext";
 import Animated, { SlideInRight, SlideOutLeft } from "react-native-reanimated";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TextInput, TouchableWithoutFeedback } from 'react-native';
 
 
 interface OrderItem {
@@ -61,6 +63,9 @@ type OrdersScreenParams = {
 const OrdersScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("All");
   const [selectedType, setSelectedType] = useState<"Product" | "Service">("Product");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showRecent, setShowRecent] = useState<boolean>(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const navigation = useNavigation<any>();
@@ -77,12 +82,68 @@ const OrdersScreen: React.FC = () => {
   const [addresses, setAddresses] = useState<{ [key: number]: string }>({});
   const insets = useSafeAreaInsets();
 
-const route = useRoute<RouteProp<Record<string, OrdersScreenParams>, string>>();
-useEffect(() => {
-  if (route?.params?.type) {
-    setSelectedType(route.params.type);
-  }
-}, [route]);
+  const route = useRoute<RouteProp<Record<string, OrdersScreenParams>, string>>();
+  useEffect(() => {
+    if (route?.params?.type) {
+      setSelectedType(route.params.type);
+    }
+  }, [route]);
+
+  useEffect(() => {
+    // load recent searches for current vendor
+    const loadRecent = async () => {
+      try {
+        const key = `recentSearches:${vendorData?.id ?? 'global'}`;
+        const raw = await AsyncStorage.getItem(key);
+        if (raw) setRecentSearches(JSON.parse(raw));
+        else setRecentSearches([]);
+      } catch (e) {
+        console.warn('Failed to load recent searches', e);
+        setRecentSearches([]);
+      }
+    };
+    loadRecent();
+  }, [vendorData?.id]);
+
+  const saveRecent = async (q: string) => {
+    try {
+      const trimmed = q?.trim();
+      if (!trimmed) return;
+      const key = `recentSearches:${vendorData?.id ?? 'global'}`;
+      setRecentSearches((prev) => {
+        const next = [trimmed, ...prev.filter((s) => s !== trimmed)].slice(0, 6);
+        AsyncStorage.setItem(key, JSON.stringify(next));
+        return next;
+      });
+    } catch (e) {
+      console.warn('Failed to save recent search', e);
+    }
+  };
+
+  const clearRecent = async () => {
+    try {
+      const key = `recentSearches:${vendorData?.id ?? 'global'}`;
+      await AsyncStorage.removeItem(key);
+      setRecentSearches([]);
+    } catch (e) {
+      console.warn('Failed to clear recent searches', e);
+    }
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+  };
+
+  const handleSearchFocus = () => setShowRecent(true);
+  const handleSearchBlur = () => {
+
+    setTimeout(() => setShowRecent(false), 150);
+  };
+
+  const handleSearchSubmit = () => {
+    saveRecent(searchQuery);
+    setShowRecent(false);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -109,13 +170,19 @@ useEffect(() => {
       fetchedOrders = fetchedOrders.filter((o) => o.orderStatus !== "PENDING_PAYMENT");
 
       // Fetch service bookings
+      // Fetch service bookings
       const serviceResponse = await apiClient.get<any[]>(
         `api/public/serviceBooking/getAll?vendorId=${vendorId}`
       );
       const serviceBookings = serviceResponse.data || [];
 
+      // Filter out PENDING_PAYMENT services
+      const serviceBookingsFiltered = serviceBookings.filter(
+        (s) => s.orderStatus !== "PENDING_PAYMENT"
+      );
+
       // Map services
-      const mappedServices: Order[] = serviceBookings.map((s) => ({
+      const mappedServices: Order[] = serviceBookingsFiltered.map((s) => ({
         id: s.id,
         productOrderId: s.serviceBookingId || `SB-${s.id}`,
         createdDate: s.createdDate,
@@ -135,6 +202,7 @@ useEffect(() => {
         gst: s.gst || 0,
         isService: true,
       }));
+
 
       const allOrders = [...fetchedOrders, ...mappedServices];
 
@@ -268,6 +336,18 @@ useEffect(() => {
     filteredOrders = typeFilteredOrders.filter((o) => o.orderStatus === activeTab);
   }
 
+  // Apply text search on top of the current filteredOrders
+  const finalOrders = searchQuery?.trim()
+    ? filteredOrders.filter((o) => {
+      const q = searchQuery.toLowerCase();
+      return (
+        String(o.productOrderId || "").toLowerCase().includes(q) ||
+        String(o.userName || "").toLowerCase().includes(q) ||
+        String(o.userPhone || "").toLowerCase().includes(q)
+      );
+    })
+    : filteredOrders;
+
 
 
   const formatTime = (dateString: string): string => {
@@ -312,7 +392,7 @@ useEffect(() => {
     }
   };
 
-  const groupedOrders = filteredOrders.reduce((groups: any, order) => {
+  const groupedOrders = finalOrders.reduce((groups: any, order) => {
     const dateLabel = getDateLabel(order.createdDate);
     if (!groups[dateLabel]) groups[dateLabel] = [];
     groups[dateLabel].push(order);
@@ -341,8 +421,56 @@ useEffect(() => {
         rightIcon="settings-outline"
         showSearch
         searchPlaceholder="Search by order ID, customer name..."
+        searchValue={searchQuery}
+        onSearchChange={handleSearchChange}
+        onSearchFocus={handleSearchFocus}
+        onSearchBlur={handleSearchBlur}
+        onSearchSubmit={handleSearchSubmit}
         onRightPress={() => navigation.navigate("Settings")}
       />
+
+      {/* Recent searches modal-like overlay to avoid layout overlap */}
+      {showRecent && recentSearches.length > 0 && (
+        <>
+          <TouchableWithoutFeedback onPress={() => setShowRecent(false)}>
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.25)', zIndex: 999 }} />
+          </TouchableWithoutFeedback>
+
+          <View style={{ position: 'absolute', top: insets.top + 110, left: 12, right: 12, zIndex: 1000 }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 6, shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6, elevation: 6 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 6, marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, color: '#6b7280', fontWeight: '700' }}>Recent searches</Text>
+                {/* <TouchableOpacity onPress={clearRecent}>
+                  <Text style={{ color: '#ef4444', fontSize: 13, fontWeight: '700' }}>Clear</Text>
+                </TouchableOpacity> */}
+              </View>
+              {recentSearches.map((item, idx) => (
+                <View key={idx} style={{ borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: '#eef2f7' }}>
+                  <TouchableOpacity
+                    onPress={() => { setSearchQuery(item); saveRecent(item); setShowRecent(false); }}
+                    style={{ paddingVertical: 10, paddingHorizontal: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Ionicons name="time-outline" size={18} color="#9ca3af" />
+                      <Text style={{ marginLeft: 10, color: '#111827' }}>{item}</Text>
+                    </View>
+                    <TouchableOpacity onPress={async () => {
+                      try {
+                        const key = `recentSearches:${vendorData?.id ?? 'global'}`;
+                        const next = recentSearches.filter((s) => s !== item);
+                        await AsyncStorage.setItem(key, JSON.stringify(next));
+                        setRecentSearches(next);
+                      } catch (e) { console.warn(e); }
+                    }}>
+                      <Text style={{ color: '#9ca3af', fontWeight: '700' }}>Remove</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        </>
+      )}
 
       <View style={{ backgroundColor: "#fff", padding: 12, borderBottomWidth: 1, borderBottomColor: "#e6edf0" }}>
         <View style={{ flexDirection: "row" }}>
@@ -554,7 +682,7 @@ useEffect(() => {
                             <View key={idx} style={{ flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#eef2f7", paddingVertical: 6 }}>
                               <Text style={{ flex: 1, color: "#111827", fontSize: 13 }}>{item.productName}</Text>
                               {!order.isService && (
-                              <Text style={{ color: "#6b7280", marginHorizontal: 8 }}>x{item.quantity}</Text>
+                                <Text style={{ color: "#6b7280", marginHorizontal: 8 }}>x{item.quantity}</Text>
                               )}
                               <Text style={{ fontWeight: "700", color: "#111827" }}>₹{item.price}</Text>
                             </View>
@@ -562,48 +690,48 @@ useEffect(() => {
                         </View>
                       )}
 
-                    
-                    {/* PRICE SUMMARY — SHOW ONLY IN PRODUCT MODE */}
-{!order.isService && (
-  <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: "#eef2f7", paddingTop: 8 }}>
-    
-    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
-      <Text style={{ color: "#6b7280" }}>SubTotal</Text>
-      <Text style={{ fontWeight: "600", color: "#111827" }}>
-        ₹{order.orderDto?.reduce((sum, item) => sum + item.price * item.quantity, 0)}
-      </Text>
-    </View>
 
-    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
-      <Text style={{ color: "#6b7280" }}>Delivery Charge</Text>
-      <Text style={{ fontWeight: "600", color: "#111827" }}>
-        ₹{order.orderDto?.[0]?.deliveryCharge || 0}
-      </Text>
-    </View>
+                      {/* PRICE SUMMARY — SHOW ONLY IN PRODUCT MODE */}
+                      {!order.isService && (
+                        <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: "#eef2f7", paddingTop: 8 }}>
 
-    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
-      <Text style={{ color: "#6b7280" }}>GST</Text>
-      <Text style={{ fontWeight: "600", color: "#111827" }}>₹{order.gst || 0}</Text>
-    </View>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+                            <Text style={{ color: "#6b7280" }}>SubTotal</Text>
+                            <Text style={{ fontWeight: "600", color: "#111827" }}>
+                              ₹{order.orderDto?.reduce((sum, item) => sum + item.price * item.quantity, 0)}
+                            </Text>
+                          </View>
 
-    <View
-      style={{
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginTop: 8,
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: "#e6eef3",
-      }}
-    >
-      <Text style={{ fontSize: 15, fontWeight: "700", color: "#111827" }}>Total Amount</Text>
-      <Text style={{ fontSize: 15, fontWeight: "900", color: "#40916c" }}>
-        ₹{order.totalAmount}
-      </Text>
-    </View>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+                            <Text style={{ color: "#6b7280" }}>Delivery Charge</Text>
+                            <Text style={{ fontWeight: "600", color: "#111827" }}>
+                              ₹{order.orderDto?.[0]?.deliveryCharge || 0}
+                            </Text>
+                          </View>
 
-  </View>
-)}
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+                            <Text style={{ color: "#6b7280" }}>GST</Text>
+                            <Text style={{ fontWeight: "600", color: "#111827" }}>₹{order.gst || 0}</Text>
+                          </View>
+
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              justifyContent: "space-between",
+                              marginTop: 8,
+                              paddingTop: 8,
+                              borderTopWidth: 1,
+                              borderTopColor: "#e6eef3",
+                            }}
+                          >
+                            <Text style={{ fontSize: 15, fontWeight: "700", color: "#111827" }}>Total Amount</Text>
+                            <Text style={{ fontSize: 15, fontWeight: "900", color: "#40916c" }}>
+                              ₹{order.totalAmount}
+                            </Text>
+                          </View>
+
+                        </View>
+                      )}
 
 
                       {/* ACTIONS */}

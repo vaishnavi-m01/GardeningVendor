@@ -19,6 +19,8 @@ import RBSheet from "react-native-raw-bottom-sheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CheckboxItem from "../utils/CheckboxItem";
 import Entypo from "react-native-vector-icons/Entypo";
+import Ionicons from "react-native-vector-icons/Ionicons";
+
 
 interface RBSheetRef {
   open: () => void;
@@ -40,6 +42,53 @@ type ProductsRouteParams = {
 };
 
 const Products = () => {
+  // ...existing code...
+  const [vendorData, setVendorData] = useState<any>(null);
+  // Search state and recent search modal
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showRecent, setShowRecent] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  useEffect(() => {
+    const loadRecent = async () => {
+      try {
+        const key = `recentSearches:${vendorData?.id ?? 'global'}`;
+        const raw = await AsyncStorage.getItem(key);
+        if (raw) setRecentSearches(JSON.parse(raw));
+        else setRecentSearches([]);
+      } catch (e) {
+        setRecentSearches([]);
+      }
+    };
+    loadRecent();
+  }, [vendorData?.id]);
+
+  const saveRecent = async (q: string) => {
+    try {
+      const trimmed = q?.trim();
+      if (!trimmed) return;
+      const key = `recentSearches:${vendorData?.id ?? 'global'}`;
+      setRecentSearches((prev) => {
+        const next = [trimmed, ...prev.filter((s) => s !== trimmed)].slice(0, 6);
+        AsyncStorage.setItem(key, JSON.stringify(next));
+        return next;
+      });
+    } catch (e) { }
+  };
+
+  const clearRecent = async () => {
+    try {
+      const key = `recentSearches:${vendorData?.id ?? 'global'}`;
+      await AsyncStorage.removeItem(key);
+      setRecentSearches([]);
+    } catch (e) { }
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+  };
+  const handleSearchFocus = () => setShowRecent(true);
+  const handleSearchBlur = () => setTimeout(() => setShowRecent(false), 150);
+  const handleSearchSubmit = () => { saveRecent(searchQuery); setShowRecent(false); };
   const [categories, setCategories] = useState<Category[]>([]);
   // default 'products' represents showing all products
   const [selectedCategory, setSelectedCategory] = useState<string>("products");
@@ -52,13 +101,14 @@ const Products = () => {
   const [subLoading, setSubLoading] = useState(false);
 
   const [selectedStockFilters, setSelectedStockFilters] = useState<string[]>([]);
-  const [selectedProductStatus, setSelectedProductStatus] = useState<string[]>([]);
+  // const [selectedProductStatus, setSelectedProductStatus] = useState<string[]>([]);
+  const [selectedProductStatus, setSelectedProductStatus] = useState<string | null>(null);
 
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const refRBSheet = useRef<RBSheetRef>(null);
 
-  const [vendorData, setVendorData] = useState<any>(null);
+  // REMOVE this duplicate declaration; vendorData is already declared above
   const [activeFilterSection, setActiveFilterSection] = useState<"Category" | "Stock Status" | "Product Status">("Category");
   const route = useRoute<RouteProp<Record<string, ProductsRouteParams>, string>>();
 
@@ -125,8 +175,6 @@ const Products = () => {
     };
     loadData();
   }, []);
-
-
 
 
   // fetch categories 
@@ -204,6 +252,7 @@ const Products = () => {
           stockQuantity: p.stockQuantity,
           subCategoryName: p.subCategoryName,
           activeStatus: p.activeStatus,
+          averageRating: p.averageRating,
           type: "product",
         }))
         : [];
@@ -228,6 +277,7 @@ const Products = () => {
           imageUrl: s.imageUrl,
           duration: s.duration,
           activeStatus: s.activeStatus,
+          averageRating: s.averageRating,
           type: "service",
         }))
         : [];
@@ -298,27 +348,49 @@ const Products = () => {
   };
 
   // --- Filters ---
-  const filteredProducts = products.filter((item) => {
+  let filteredProducts = products.filter((item) => {
     if (selectedStockFilters.length) {
       if (selectedStockFilters.includes("In Stock") && item.stockQuantity <= 10) return false;
       if (selectedStockFilters.includes("Low Stock") && (item.stockQuantity <= 0 || item.stockQuantity > 10)) return false;
       if (selectedStockFilters.includes("Out of Stock") && item.stockQuantity !== 0) return false;
     }
-    if (selectedProductStatus.length) {
-      if (selectedProductStatus.includes("Active") && !item.activeStatus) return false;
-      if (selectedProductStatus.includes("Inactive") && item.activeStatus) return false;
+    if (selectedProductStatus) {
+      if (selectedProductStatus === "Active" && !item.activeStatus) return false;
+      if (selectedProductStatus === "Inactive" && item.activeStatus) return false;
     }
+
     // Services mode → show only services
     if (selectedType === "Service") return item.type === "service";
     // Product mode → show only products
     return item.type === "product";
   });
 
-  const toggleStockFilter = (filter: string) =>
-    setSelectedStockFilters((prev) => (prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]));
+  // Apply search filter
+  if (searchQuery?.trim()) {
+    const q = searchQuery.toLowerCase();
+    filteredProducts = filteredProducts.filter((item) => {
+      return (
+        String(item.name || "").toLowerCase().includes(q) ||
+        String(item.subCategoryName || "").toLowerCase().includes(q)
+      );
+    });
+  }
 
-  const toggleProductStatus = (status: string) =>
-    setSelectedProductStatus((prev) => (prev.includes(status) ? prev.filter((f) => f !== status) : [...prev, status]));
+  // const toggleStockFilter = (filter: string) =>
+  //   setSelectedStockFilters((prev) => (prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]));
+
+  const toggleStockFilter = (filter: string) => {
+    setSelectedStockFilters((prev) => {
+      if (prev.includes(filter)) return [];
+      return [filter];
+    });
+  }
+
+  // const toggleProductStatus = (status: string) =>
+  //   setSelectedProductStatus((prev) => (prev.includes(status) ? prev.filter((f) => f !== status) : [...prev, status]));
+  const toggleProductStatus = (status: string) => {
+    setSelectedProductStatus(prev => (prev === status ? null : status));
+  };
 
   const totalCount = products.length;
   const inStockCount = products.filter((p) => p.stockQuantity > 10).length;
@@ -340,6 +412,11 @@ const Products = () => {
         onRightPress={openFilterSheet}
         showSearch
         searchPlaceholder="Search items..."
+        searchValue={searchQuery}
+        onSearchChange={handleSearchChange}
+        onSearchFocus={handleSearchFocus}
+        onSearchBlur={handleSearchBlur}
+        onSearchSubmit={handleSearchSubmit}
         showStats
         statsData={[
           { label: "Total", value: `${totalCount}` },
@@ -348,6 +425,44 @@ const Products = () => {
           { label: "Out of Stock", value: `${outStockCount}` },
         ]}
       />
+      {/* Recent searches modal-like overlay to avoid layout overlap */}
+      {showRecent && recentSearches.length > 0 && (
+        <>
+          <View style={{ position: 'absolute', top: insets.top + 110, left: 12, right: 12, zIndex: 1000 }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 6, shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6, elevation: 6 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 6, marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, color: '#6b7280', fontWeight: '700' }}>Recent searches</Text>
+                {/* <TouchableOpacity onPress={clearRecent}>
+                  <Text style={{ color: '#ef4444', fontSize: 13, fontWeight: '700' }}>Clear</Text>
+                </TouchableOpacity> */}
+              </View>
+              {recentSearches.map((item, idx) => (
+                <View key={idx} style={{ borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: '#eef2f7' }}>
+                  <TouchableOpacity
+                    onPress={() => { setSearchQuery(item); saveRecent(item); setShowRecent(false); }}
+                    style={{ paddingVertical: 10, paddingHorizontal: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Ionicons name="time-outline" size={18} color="#9ca3af" />
+                      <Text style={{ marginLeft: 10, color: '#111827' }}>{item}</Text>
+                    </View>
+                    <TouchableOpacity onPress={async () => {
+                      try {
+                        const key = `recentSearches:${vendorData?.id ?? 'global'}`;
+                        const next = recentSearches.filter((s) => s !== item);
+                        await AsyncStorage.setItem(key, JSON.stringify(next));
+                        setRecentSearches(next);
+                      } catch (e) { }
+                    }}>
+                      <Text style={{ color: '#9ca3af', fontWeight: '700' }}>Remove</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        </>
+      )}
 
       {/* ------------------ Product / Service Toggle (green style) ------------------ */}
       <View style={styles.toggleContainer}>
@@ -514,7 +629,7 @@ const Products = () => {
               </View>
 
               {/* Details */}
-              <View style={{ padding: 12 }}>
+              <View style={{ padding: 12, paddingTop: 5 }}>
                 <Text style={{ fontSize: 13, fontWeight: "600", color: "#0f172a", marginBottom: 2 }} numberOfLines={2}>
                   {item.name || item.productName}
                 </Text>
@@ -526,15 +641,45 @@ const Products = () => {
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                   {item.price && <Text style={{ fontSize: 15, fontWeight: "800", color: "#358362" }}>₹{item.price}</Text>}
                   {item.stockQuantity !== undefined && <Text style={{ fontSize: 11, fontWeight: "600", color: item.stockQuantity > 10 ? "#16a34a" : item.stockQuantity > 0 ? "#f59e0b" : "#ef4444" }}>Stock: {item.stockQuantity}</Text>}
+
                 </View>
+                {item.type === "service" && (
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, justifyContent: "space-between" }}>
+
+                    {/* Duration Left */}
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Ionicons name="time-outline" size={14} color="#555" />
+                      <Text style={{ marginLeft: 4, fontSize: 13, color: "#444" }}>
+                        {item.duration || "-"}
+                      </Text>
+                    </View>
+
+                    {/* Rating Right — show only if rating exists */}
+                    {item.averageRating > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Ionicons name="star" size={14} color="#FBBF24" />
+                        <Text style={{ marginLeft: 4, fontSize: 13, color: "#444" }}>
+                          {item.averageRating}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+
 
                 {/* Product only details */}
                 {item.type !== "service" && selectedType !== "Service" && (
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Entypo name="star" color="#fbbf24" size={14} />
-                      <Text style={{ fontSize: 12, fontWeight: "600", color: "#475569", marginLeft: 4 }}>{item.rating || "4.8"}</Text>
-                    </View>
+                    {item?.averageRating !== undefined && item.averageRating > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Entypo name="star" color="#fbbf24" size={14} />
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: "#475569", marginLeft: 4 }}>
+                          {item.averageRating}
+                        </Text>
+                      </View>
+                    )}
+
 
                     <Text style={{ fontSize: 11, color: "#94a3b8" }}>{item.soldCount ? `${item.soldCount} Sold` : "95 Sold"}</Text>
                   </View>
@@ -583,7 +728,7 @@ const Products = () => {
           shadowRadius: 8,
           zIndex: 9999,
         }}
-        onPress={() => navigation.navigate("AddProductForm")}
+        onPress={() => navigation.navigate("AddProductForm", { type: selectedType })}
       >
         <Text style={{ color: "#fff", fontSize: 32, fontWeight: "300" }}>+</Text>
       </TouchableOpacity>
@@ -611,25 +756,46 @@ const Products = () => {
 
         <View style={{ flexDirection: "row", flex: 1 }}>
           {/* Left Menu */}
+          {/* Left Menu */}
           <View style={{ width: "40%", backgroundColor: "#f8f9fb", borderRightWidth: 1, borderRightColor: "#e2e8f0" }}>
-            {["Category", "Stock Status", "Product Status"].map((section) => (
-              <TouchableOpacity
-                key={section}
-                onPress={() => setActiveFilterSection(section as any)}
-                style={{
-                  paddingVertical: 16,
-                  paddingHorizontal: 12,
-                  backgroundColor: activeFilterSection === section ? "#eff6ff" : "transparent",
-                  borderLeftWidth: activeFilterSection === section ? 3 : 0,
-                  borderLeftColor: activeFilterSection === section ? "#358362" : "transparent",
-                }}
-              >
-                <Text style={{ color: activeFilterSection === section ? "#358362" : "#64748b", fontWeight: activeFilterSection === section ? "700" : "400", fontSize: 15 }}>
-                  {section}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {["Category", "Stock Status", "Product Status"].map((section) => {
+              let count = 0;
+              if (section === "Category") {
+                count = selectedCategory && selectedCategory !== "products" ? 1 : 0;
+              } else if (section === "Stock Status") {
+                count = selectedStockFilters.length;
+              } else if (section === "Product Status") {
+                count = selectedProductStatus ? 1 : 0;
+              }
+
+              return (
+                <TouchableOpacity
+                  key={section}
+                  onPress={() => setActiveFilterSection(section as any)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingVertical: 16,
+                    paddingHorizontal: 12,
+                    backgroundColor: activeFilterSection === section ? "#D1FADF" : "transparent",
+                    borderLeftWidth: activeFilterSection === section ? 3 : 0,
+                    borderLeftColor: activeFilterSection === section ? "#358362" : "transparent",
+                  }}
+                >
+                  <Text style={{ color: activeFilterSection === section ? "#358362" : "#64748b", fontWeight: activeFilterSection === section ? "700" : "400", fontSize: 15 }}>
+                    {section}
+                  </Text>
+                  {count > 0 && (
+                    <View style={{ backgroundColor: "#358362", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2, minWidth: 24, alignItems: "center" }}>
+                      <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>{count}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
+
 
           {/* Right Content */}
           <View style={{ flex: 1, padding: 16 }}>
@@ -676,8 +842,14 @@ const Products = () => {
                 <>
                   <Text style={{ fontWeight: "600", fontSize: 15, color: "#358362", marginBottom: 12 }}>Product Filters</Text>
                   {["Active", "Inactive"].map((status) => (
-                    <CheckboxItem key={status} label={status} selected={selectedProductStatus.includes(status)} onPress={() => toggleProductStatus(status)} />
+                    <CheckboxItem
+                      key={status}
+                      label={status}
+                      selected={selectedProductStatus === status}
+                      onPress={() => toggleProductStatus(status)}
+                    />
                   ))}
+
                 </>
               )}
             </ScrollView>
@@ -691,7 +863,7 @@ const Products = () => {
                   setSelectedCategory("products");
                   setSelectedSubcategory({ id: "all", name: "All" });
                   setSelectedStockFilters([]);
-                  setSelectedProductStatus([]);
+                  setSelectedProductStatus(null);
                   fetchProductsOnly(vendorData?.id || "");
                 }}
                 style={{ flex: 1, backgroundColor: "#e2e8f0", borderRadius: 8, paddingVertical: 12, alignItems: "center" }}
