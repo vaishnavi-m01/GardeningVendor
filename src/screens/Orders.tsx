@@ -9,6 +9,8 @@ import LinearGradient from "react-native-linear-gradient";
 import apiClient from "../api/apiBaseUrl";
 import Toast from "react-native-toast-message";
 import GradientHeader from "../utils/GradientHeader";
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
 
 type OrdersScreenParams = {
     type?: "Product" | "Service";
@@ -176,7 +178,7 @@ const Orders = () => {
     const fetchDashboardCounts = async () => {
         try {
             const response = await apiClient.get(
-                `/api/public/dashboard/totalStatusCounts?vendorId=${vendorData?.id}`
+                `api/public/dashboard/totalStatusCounts?vendorId=${vendorData?.id}`
             );
 
             const bookings = response.data.counts[0];
@@ -237,7 +239,7 @@ const Orders = () => {
 
     const fetchOrdersData = async () => {
         try {
-            const response = await apiClient.get(`/api/public/order/getAll?userId=${vendorData?.id}`);
+            const response = await apiClient.get(`api/public/order/getAll?vendorId=${vendorData?.id}`);
             console.log("Orders data:", response.data);
 
             // Sort by createdDate descending
@@ -295,9 +297,17 @@ const Orders = () => {
     const fetchServiceBookings = async (vendorId: string) => {
         try {
             setLoading(true);
-            const response = await apiClient.get(`/api/public/serviceBooking/getAll?vendorId=${vendorId}`);
 
-            const sortedBookings = response.data.sort(
+            const response = await apiClient.get(`api/public/serviceBooking/getAll?vendorId=${vendorId}`);
+            const allBookings = response.data || [];
+
+            // Filter out PENDING_PAYMENT and ORDER_REQUESTED
+            const filteredBookings = allBookings.filter(
+                (b: any) => b.orderStatus !== "PENDING_PAYMENT" && b.orderStatus !== "ORDER_REQUESTED"
+            );
+
+            // Sort latest first
+            const sortedBookings = filteredBookings.sort(
                 (a: any, b: any) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
             );
 
@@ -322,6 +332,7 @@ const Orders = () => {
             setLoading(false);
         }
     };
+
 
 
     useFocusEffect(
@@ -657,7 +668,6 @@ const Orders = () => {
 
                     {/* Recent Orders */}
                     <View className="mb-6">
-
                         <Modal visible={modalVisible} animationType="fade" transparent={true}>
                             <TouchableWithoutFeedback onPress={handleCloseModal}>
                                 <View
@@ -681,35 +691,45 @@ const Orders = () => {
                                             }}
                                         >
                                             {loading ? (
-                                                <ActivityIndicator size="large" color="#40916c" style={{ marginTop: 40 }} />
+                                                <ActivityIndicator
+                                                    size="large"
+                                                    color="#40916c"
+                                                    style={{ marginTop: 40 }}
+                                                />
                                             ) : selectedOrder ? (
                                                 <ScrollView showsVerticalScrollIndicator={false}>
-                                                    <View className="flex-row justify-between items-center mb-3">
-                                                        {/* Order ID */}
-                                                        <View>
-                                                            <Text className="text-[13px] text-gray-500 font-medium mb-1">Order ID</Text>
-                                                            <Text className="text-base font-bold text-gray-900">
-                                                                #{selectedOrder.productOrderId}
-                                                            </Text>
-                                                        </View>
+                                                    <View className="mb-3">
+                                                        <View className="flex-row justify-between items-center">
 
 
-                                                        {/* Order Status */}
-                                                        <View
-                                                            className={`px-4 py-2 rounded-full items-center justify-center ${getStatusColor(selectedOrder?.orderStatus || "").bg}`}
-                                                        >
-                                                            <Text
-                                                                className={`text-[12px] font-bold ${getStatusColor(selectedOrder?.orderStatus || "").text}`}
+                                                            <View>
+                                                                <Text className="text-[13px] text-gray-500 font-medium mb-1">
+                                                                    Order ID
+                                                                </Text>
+                                                                <Text className="text-base font-bold text-gray-900 mb-1">
+                                                                    #{selectedOrder.productOrderId}
+                                                                </Text>
+                                                            </View>
+
+                                                            {/* Status Badge */}
+                                                            <View
+                                                                className={`px-3 py-1 rounded-full items-center justify-center ${getStatusColor(selectedOrder?.orderStatus || "").bg}`}
                                                             >
-                                                                {selectedOrder?.orderStatus || "N/A"}
-                                                            </Text>
+                                                                <Text
+                                                                    className={`text-[12px] font-bold ${getStatusColor(selectedOrder?.orderStatus || "").text}`}
+                                                                >
+                                                                    {selectedOrder?.orderStatus || "N/A"}
+                                                                </Text>
+                                                            </View>
+
+
+
+
+                                                            {/* Right: Cancel Icon */}
+                                                            <TouchableOpacity onPress={handleCloseModal}>
+                                                                <Icon name="close-circle" size={24} color="#ef4444" />
+                                                            </TouchableOpacity>
                                                         </View>
-
-
-                                                        {/* Cancel Icon */}
-                                                        {/* <TouchableOpacity onPress={handleCloseModal} style={{ marginLeft: 8 }}>
-                                                        <Ionicons name="close" size={24} color="#333" />
-                                                    </TouchableOpacity> */}
                                                     </View>
 
 
@@ -725,34 +745,83 @@ const Orders = () => {
                                                                     userPhone: selectedOrder.userPhone,
                                                                 })
                                                             }
-                                                            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f8fafc", padding: 10, borderRadius: 10, }}
+                                                            style={{
+                                                                flexDirection: "row",
+                                                                alignItems: "center",
+                                                                backgroundColor: "#f8fafc",
+                                                                padding: 10,
+                                                                borderRadius: 10,
+                                                            }}
                                                         >
-                                                            <LinearGradient colors={["#667eea", "#764ba2"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 44, height: 44, borderRadius: 999, alignItems: "center", justifyContent: "center" }}>
-                                                                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>
-                                                                    {selectedOrder.userName ? selectedOrder.userName.split(" ")[0][0] : "U"}
+                                                            <LinearGradient
+                                                                colors={["#667eea", "#764ba2"]}
+                                                                start={{ x: 0, y: 0 }}
+                                                                end={{ x: 1, y: 1 }}
+                                                                style={{
+                                                                    width: 44,
+                                                                    height: 44,
+                                                                    borderRadius: 999,
+                                                                    alignItems: "center",
+                                                                    justifyContent: "center",
+                                                                }}
+                                                            >
+                                                                <Text
+                                                                    style={{
+                                                                        color: "#fff",
+                                                                        fontWeight: "800",
+                                                                        fontSize: 16,
+                                                                    }}
+                                                                >
+                                                                    {selectedOrder.userName
+                                                                        ? selectedOrder.userName.split(" ")[0][0]
+                                                                        : "U"}
                                                                     {selectedOrder.userName?.split(" ")[1]?.[0] || ""}
                                                                 </Text>
                                                             </LinearGradient>
 
                                                             <View style={{ flex: 1, marginLeft: 10 }}>
-                                                                <Text style={{ fontSize: 14, fontWeight: "700", color: "#0f172a" }}>{selectedOrder.userName}</Text>
-                                                                <Text style={{ fontSize: 12, color: "#6b7280" }}>📍 {addresses[Number(selectedOrder.addressId)] || "Loading address..."}</Text>
+                                                                <Text
+                                                                    style={{
+                                                                        fontSize: 14,
+                                                                        fontWeight: "700",
+                                                                        color: "#0f172a",
+                                                                    }}
+                                                                >
+                                                                    {selectedOrder.userName}
+                                                                </Text>
+                                                                <Text
+                                                                    style={{
+                                                                        fontSize: 12,
+                                                                        color: "#6b7280",
+                                                                    }}
+                                                                >
+                                                                    📍{" "}
+                                                                    {addresses[Number(selectedOrder.addressId)] ||
+                                                                        "Loading address..."}
+                                                                </Text>
                                                             </View>
 
-                                                            <TouchableOpacity onPress={() => {
-                                                                if (!selectedOrder.userPhone) return;
-                                                                // call logic
-                                                                if (Platform.OS === "android") {
-                                                                    ToastAndroid.show(`Call: ${selectedOrder.userPhone}`, ToastAndroid.SHORT);
-                                                                } else {
-                                                                    Toast.show({ type: "info", text1: `Call: ${selectedOrder.userPhone}` });
-                                                                }
-                                                            }}>
+                                                            <TouchableOpacity
+                                                                onPress={() => {
+                                                                    if (!selectedOrder.userPhone) return;
+                                                                    // call logic
+                                                                    if (Platform.OS === "android") {
+                                                                        ToastAndroid.show(
+                                                                            `Call: ${selectedOrder.userPhone}`,
+                                                                            ToastAndroid.SHORT
+                                                                        );
+                                                                    } else {
+                                                                        Toast.show({
+                                                                            type: "info",
+                                                                            text1: `Call: ${selectedOrder.userPhone}`,
+                                                                        });
+                                                                    }
+                                                                }}
+                                                            >
                                                                 <Ionicons name="call-outline" size={22} color="#40916c" />
                                                             </TouchableOpacity>
                                                         </TouchableOpacity>
                                                     </View>
-
 
                                                     {/* Amounts */}
                                                     <View
@@ -763,22 +832,49 @@ const Orders = () => {
                                                             paddingTop: 8,
                                                         }}
                                                     >
-                                                        <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+                                                        <View
+                                                            style={{
+                                                                flexDirection: "row",
+                                                                justifyContent: "space-between",
+                                                                paddingVertical: 4,
+                                                            }}
+                                                        >
                                                             <Text style={{ color: "#6b7280" }}>SubTotal</Text>
                                                             <Text style={{ fontWeight: "600", color: "#111827" }}>
-                                                                ₹{selectedOrder.orderDto?.reduce((sum, item) => sum + item.price * item.quantity, 0)}
+                                                                ₹
+                                                                {selectedOrder.orderDto?.reduce(
+                                                                    (sum, item) => sum + item.price * item.quantity,
+                                                                    0
+                                                                )}
                                                             </Text>
                                                         </View>
-                                                        <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+
+                                                        <View
+                                                            style={{
+                                                                flexDirection: "row",
+                                                                justifyContent: "space-between",
+                                                                paddingVertical: 4,
+                                                            }}
+                                                        >
                                                             <Text style={{ color: "#6b7280" }}>Delivery Charge</Text>
                                                             <Text style={{ fontWeight: "600", color: "#111827" }}>
                                                                 ₹{selectedOrder.orderDto?.[0]?.deliveryCharge || 0}
                                                             </Text>
                                                         </View>
-                                                        <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+
+                                                        <View
+                                                            style={{
+                                                                flexDirection: "row",
+                                                                justifyContent: "space-between",
+                                                                paddingVertical: 4,
+                                                            }}
+                                                        >
                                                             <Text style={{ color: "#6b7280" }}>GST</Text>
-                                                            <Text style={{ fontWeight: "600", color: "#111827" }}>₹{selectedOrder.gst || 0}</Text>
+                                                            <Text style={{ fontWeight: "600", color: "#111827" }}>
+                                                                ₹{selectedOrder.gst || 0}
+                                                            </Text>
                                                         </View>
+
                                                         <View
                                                             style={{
                                                                 flexDirection: "row",
@@ -789,23 +885,38 @@ const Orders = () => {
                                                                 borderTopColor: "#e6eef3",
                                                             }}
                                                         >
-                                                            <Text style={{ fontSize: 15, fontWeight: "700", color: "#111827" }}>Total Amount</Text>
-                                                            <Text style={{ fontSize: 15, fontWeight: "900", color: "#40916c" }}>
+                                                            <Text
+                                                                style={{
+                                                                    fontSize: 15,
+                                                                    fontWeight: "700",
+                                                                    color: "#111827",
+                                                                }}
+                                                            >
+                                                                Total Amount
+                                                            </Text>
+                                                            <Text
+                                                                style={{
+                                                                    fontSize: 15,
+                                                                    fontWeight: "900",
+                                                                    color: "#40916c",
+                                                                }}
+                                                            >
                                                                 ₹{selectedOrder.totalAmount}
                                                             </Text>
                                                         </View>
                                                     </View>
-
-
                                                 </ScrollView>
                                             ) : (
-                                                <Text style={{ textAlign: "center", marginTop: 40 }}>No details available</Text>
+                                                <Text style={{ textAlign: "center", marginTop: 40 }}>
+                                                    No details available
+                                                </Text>
                                             )}
                                         </View>
                                     </TouchableWithoutFeedback>
                                 </View>
                             </TouchableWithoutFeedback>
                         </Modal>
+
 
 
                     </View>
@@ -862,8 +973,17 @@ const Orders = () => {
                                     </TouchableOpacity>
                                 );
                             })
-                        : recentOrders.map((order, idx) => {
+
+                        : recentOrders.length === 0 ? (
+                            <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 20, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 40, marginBottom: 8 }}>📦</Text>
+                                <Text style={{ color: '#0f172a', fontSize: 16, fontWeight: '700' }}>No Orders Found</Text>
+                                <Text style={{ color: '#6b7280', fontSize: 12 }}>No recent orders yet</Text>
+                            </View>
+                        ) : recentOrders.map((order, idx) => {
+
                             const colors = getStatusColor(order.status);
+
                             return (
                                 <TouchableOpacity key={order.id} onPress={() => handleOpenModal(order.id)}>
                                     <View className="bg-white rounded-xl p-4 mb-3 border border-gray-200 flex-row justify-between items-center">
@@ -920,7 +1040,6 @@ const Orders = () => {
                                                     </Text>
                                                 </View>
 
-                                                {/* Order Status */}
 
                                                 {/* Order Status */}
                                                 <View
@@ -934,11 +1053,10 @@ const Orders = () => {
                                                 </View>
 
 
+                                                <TouchableOpacity onPress={handleCloseServicesModal}>
+                                                    <Icon name="close-circle" size={24} color="#ef4444" />
+                                                </TouchableOpacity>
 
-                                                {/* Cancel Icon */}
-                                                {/* <TouchableOpacity onPress={handleCloseModal} style={{ marginLeft: 8 }}>
-                                                        <Ionicons name="close" size={24} color="#333" />
-                                                    </TouchableOpacity> */}
                                             </View>
 
 

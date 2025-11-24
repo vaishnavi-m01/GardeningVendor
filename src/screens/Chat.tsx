@@ -17,6 +17,7 @@ import LinearGradient from "react-native-linear-gradient";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import AudioRecorderPlayer from "react-native-nitro-sound";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Get screen width for message bubble sizing
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -31,6 +32,8 @@ interface Message {
 
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
   const route = useRoute();
   // Safely extract route params
   const { userName, initials } = (route.params as any) || {};
@@ -352,16 +355,16 @@ const ChatScreen: React.FC = () => {
       {/* BODY & KEYBOARD AVOIDING VIEW */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        // Adjust for header height on iOS
+
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 85 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 89 : 0}
       >
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 16,
-            paddingBottom: 50, // Space for the input bar when content is short
+            paddingBottom: 50,
           }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -379,8 +382,7 @@ const ChatScreen: React.FC = () => {
           style={[
             styles.inputWrap,
             {
-              // Ensures correct padding based on platform, removes unwanted manual margin.
-              paddingBottom: Platform.OS === "ios" ? 16 : 10,
+              paddingBottom: Platform.OS === "ios" ? 16 : 16,
             },
           ]}
         >

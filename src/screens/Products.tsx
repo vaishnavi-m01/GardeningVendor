@@ -118,12 +118,13 @@ const Products = () => {
   const isProduct = selectedType === "Product";
 
   // PRODUCT colors
-  const productGradient = ["#dbeafe", "#93c5fd"];
-  const productText = "#1e3a8a";
+  const productGradient = ["#10b981", "#059669"];
+  const productText = "#fff";
+
 
   // SERVICE colors
-  const serviceGradient = ["#dcfce7", "#86efac"];
-  const serviceText = "#065f46";
+  const serviceGradient = ["#fde68a", "#fbbf24"];
+  const serviceText = "#78350f";
 
   // FINAL COLORS  
   const gradientColors = isProduct ? productGradient : serviceGradient;
@@ -398,44 +399,63 @@ const Products = () => {
               </TouchableOpacity>
             </View>
 
-            {serviceOrProductList.map((item: any, idx: any) => (
-              <View
-                className="bg-white rounded-xl p-4 mb-3 border border-gray-300 flex-row justify-between items-center"
-                key={idx}
-              >
-                <View className="flex-1 flex-row items-center">
-                  <View className="w-10 h-10 rounded-lg bg-gray-100 justify-center items-center mr-3.5">
-                    <Text className="text-indigo-500 text-[16px] font-bold">{idx + 1}</Text>
-                  </View>
+            {serviceOrProductList.length === 0 ? (
+              <View className="bg-white rounded-xl p-6 mt-4 border border-gray-300 items-center">
+                <Text style={{ fontSize: 42, marginBottom: 8 }}>
+                  {selectedType === "Service" ? "🛠️" : "🛒"}
+                </Text>
 
-                  <View className="flex-1">
-                    <Text className="text-gray-900 text-[15px] font-bold">
-                      {selectedType === "Service" ? item.serviceName : item.productName}
-                    </Text>
+                <Text className="text-gray-900 text-[16px] font-bold">
+                  {selectedType === "Service" ? "No Services Found" : "No Products Found"}
+                </Text>
 
-                    <Text className="text-gray-500 text-xs mt-1">
-                      {selectedType === "Service" ? item.serviceSubCategoryName : item.subCategoryName}
-                    </Text>
+                <Text className="text-gray-500 text-[12px] mt-1">
+                  {selectedType === "Service"
+                    ? "No service records available"
+                    : "No product records available"}
+                </Text>
+              </View>
+            ) : (
+              serviceOrProductList.map((item: any, idx: any) => (
+                <View
+                  className="bg-white rounded-xl p-4 mb-3 border border-gray-300 flex-row justify-between items-center"
+                  key={idx}
+                >
+                  <View className="flex-1 flex-row items-center">
+                    <View className="w-10 h-10 rounded-lg bg-gray-100 justify-center items-center mr-3.5">
+                      <Text className="text-indigo-500 text-[16px] font-bold">{idx + 1}</Text>
+                    </View>
 
-                    <View className="mt-2 flex-row items-center gap-2">
-                      <Text className="text-gray-400 text-[11px] font-semibold mr-1.5">
-                        {selectedType === "Service" ? "Booking Count:" : "Sales Count:"}
+                    <View className="flex-1">
+                      <Text className="text-gray-900 text-[15px] font-bold">
+                        {selectedType === "Service" ? item.serviceName : item.productName}
                       </Text>
 
-                      <Text className="text-gray-900 text-[14px] font-bold">
-                        {selectedType === "Service" ? item.bookingCount : item.saleCount}
+                      <Text className="text-gray-500 text-xs mt-1">
+                        {selectedType === "Service" ? item.serviceSubCategoryName : item.subCategoryName}
                       </Text>
+
+                      <View className="mt-2 flex-row items-center gap-2">
+                        <Text className="text-gray-400 text-[11px] font-semibold mr-1.5">
+                          {selectedType === "Service" ? "Booking Count:" : "Sales Count:"}
+                        </Text>
+
+                        <Text className="text-gray-900 text-[14px] font-bold">
+                          {selectedType === "Service" ? item.bookingCount : item.saleCount}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                <View className="bg-[#d1fae5] px-3 py-2 rounded-lg">
-                  <Text className="text-[#059669] text-xs font-bold">
-                    {item.percentage || item.salesPercentage}
-                  </Text>
+                  <View className="bg-[#d1fae5] px-3 py-2 rounded-lg">
+                    <Text className="text-[#059669] text-xs font-bold">
+                      {item.percentage || item.salesPercentage}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))
+            )}
+
 
 
           </View>

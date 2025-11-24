@@ -5,11 +5,14 @@ import { useNavigation } from "@react-navigation/core";
 import { Picker } from "@react-native-picker/picker";
 import { PieChart } from "react-native-gifted-charts";
 import { useVendor } from "../context/VendorContext";
+import LinearGradient from "react-native-linear-gradient";
 
 const Revenue = () => {
   const navigation = useNavigation<any>();
   const { vendorData } = useVendor();
   const [range, setRange] = useState("today");
+  const [selectedType, setSelectedType] = useState<"Product" | "Service">("Product");
+
 
   const metrics = {
     totalRevenue: 85230,
@@ -29,9 +32,62 @@ const Revenue = () => {
     { id: "3", source: "Consultations", value: 14300, trend: "+5%" },
   ];
 
+  const gradientColors =
+    selectedType === "Product"
+      ? ["#4ade80", "#065f46"]
+      : ["#fbbf24", "#d97706"];
+
+  const iconBackground =
+    selectedType === "Product"
+      ? "rgba(255, 255, 255, 0.25)"
+      : "rgba(255, 255, 255, 0.20)";
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#ffffff" }} contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
       {/* Header Section */}
+
+      <View style={{ backgroundColor: "#fff", padding: 12, borderBottomWidth: 1, borderBottomColor: "#e6edf0" }}>
+        <View style={{ flexDirection: "row" }}>
+          {/* PRODUCT BUTTON */}
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedType("Product");
+            }}
+            style={{
+              flex: 1,
+              marginRight: 8,
+              borderRadius: 12,
+              paddingVertical: 12,
+              borderWidth: 2,
+              borderColor: selectedType === "Product" ? "#15803d" : "#d1d5db",
+              backgroundColor: selectedType === "Product" ? "#ecfdf3" : "#fff",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontWeight: "600", color: selectedType === "Product" ? "#15803d" : "#334155" }}>🌿 Product</Text>
+          </TouchableOpacity>
+
+          {/* SERVICE BUTTON */}
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedType("Service");
+              // setActiveTab("All");
+            }}
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              borderRadius: 12,
+              paddingVertical: 12,
+              borderWidth: 2,
+              borderColor: selectedType === "Service" ? "#15803d" : "#d1d5db",
+              backgroundColor: selectedType === "Service" ? "#ecfdf3" : "#fff",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontWeight: "600", color: selectedType === "Service" ? "#15803d" : "#334155" }}>🛠️ Service</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       <View className="bg-gray-50 px-4 pt-5 pb-5">
         <View className="flex-row justify-between items-center mb-4">
           <View className="mb-4">
@@ -65,20 +121,48 @@ const Revenue = () => {
       {/* Main Content */}
       <View style={{ paddingHorizontal: 10, paddingTop: 24 }}>
         {/* Total Revenue Card - Featured */}
-        <View style={{ backgroundColor: "#f59e0b", borderRadius: 16, padding: 24, marginBottom: 28, overflow: "hidden" }}>
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            borderRadius: 16,
+            padding: 24,
+            marginBottom: 28,
+            overflow: "hidden",
+          }}
+        >
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "600", letterSpacing: 0.5 }}>TOTAL REVENUE</Text>
-            <Text style={{ color: "#ffffff", fontSize: 40, fontWeight: "800", marginTop: 8 }}>₹{(metrics.totalRevenue / 1000).toFixed(1)}K</Text>
+            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "600", letterSpacing: 0.5 }}>
+              TOTAL REVENUE
+            </Text>
+            <Text style={{ color: "#ffffff", fontSize: 40, fontWeight: "800", marginTop: 8 }}>
+              ₹{(metrics.totalRevenue / 1000).toFixed(1)}K
+            </Text>
           </View>
+
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center", marginRight: 10 }}>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  backgroundColor: iconBackground,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginRight: 10,
+                }}
+              >
                 <Ionicons name="trending-up" size={16} color="#ffffff" />
               </View>
-              <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "600" }}>{metrics.growth} vs last period</Text>
+              <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "600" }}>
+                {metrics.growth} vs last period
+              </Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
+
 
         {/* Financial Breakdown Grid */}
         <View style={{ marginBottom: 32 }}>

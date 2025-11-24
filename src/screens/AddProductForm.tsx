@@ -43,6 +43,8 @@ type AddProductFormRouteParams = {
   productId?: string;
   serviceId?: string;
   isService?: boolean;
+  type?: "Product" | "Service";
+
 };
 interface PotColorType {
   id: number;
@@ -160,6 +162,14 @@ const AddProductScreen = () => {
   const [servicesBenefit, setServicesBenefit] = useState("");
   const [servicesBenefitList, setServicesBenefitList] = useState<string[]>([]);
   const servicesInputRef = useRef<TextInput>(null);
+
+
+
+  useEffect(() => {
+    if (route?.params?.type) {
+      setIsService(route.params.type === "Service"); 
+    }
+  }, [route?.params?.type]);
 
 
   const handleAddBenefit = () => {
@@ -390,6 +400,7 @@ const AddProductScreen = () => {
     if (!subcategory.trim()) return Alert.alert("Validation", "Please select a subcategory");
     if (!description.trim()) return Alert.alert("Validation", "Please enter a description");
     if (!price.trim()) return Alert.alert("Validation", "Please enter product price");
+    if (!comparePrice.trim()) return Alert.alert("Validation", "Please enter product Compare At price");
     if (!stock.trim()) return Alert.alert("Validation", "Please enter product stock quantity");
 
     setLoading(true);
@@ -661,6 +672,7 @@ const AddProductScreen = () => {
     if (!serviceName.trim()) return Alert.alert("Validation", "Please enter service name");
     if (!serviceDescription.trim()) return Alert.alert("Validation", "Please enter description");
     if (!servicePrice.trim()) return Alert.alert("Validation", "Please enter price");
+    if (!serviceComparePrice.trim()) return Alert.alert("Validation", "Please enter Compare at Price")
     if (!serviceDuration.trim()) return Alert.alert("Validation", "Please enter duration");
 
     setLoading(true);
@@ -700,7 +712,7 @@ const AddProductScreen = () => {
       if (res.status === 200 || res.status === 201) {
         const currentServiceId = serviceId || res.data?.id;
 
-      
+
 
         if (mediaList.length > 0 && currentServiceId) {
           const image = mediaList[0];
@@ -736,7 +748,7 @@ const AddProductScreen = () => {
 
         navigation.navigate("MainTabs", {
           screen: "MainTabs",
-          params: { screen: "Products",params:{type:"Service"} },
+          params: { screen: "Products", params: { type: "Service" } },
         });
 
         setMediaList([]);
@@ -846,7 +858,7 @@ const AddProductScreen = () => {
 
           {/* Product Type */}
           <View className="bg-white m-3 rounded-2xl p-4 shadow">
-            <Text className="text-base font-semibold mb-3">📦 Product Type</Text>
+            <Text className="text-base font-semibold mb-3"> Product Type</Text>
             <View className="flex-row">
               <TouchableOpacity onPress={() => setIsService(false)} className={`flex-1 mr-2 rounded-xl p-3 border-2 ${!isService ? "border-green-700 bg-green-50" : "border-gray-300"}`}>
                 <Text className={`text-center font-medium ${!isService ? "text-green-700" : "text-gray-700"}`}>🌿 Product</Text>
@@ -859,7 +871,7 @@ const AddProductScreen = () => {
 
           {/* Media */}
           <View className="bg-white m-3 rounded-2xl p-4 shadow">
-            <Text className="text-base font-semibold mb-3">📸 Photos & Videos</Text>
+            <Text className="text-base font-semibold mb-3">Photos & Videos</Text>
             {mediaList.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
                 <View className="flex-row items-center px-1">
@@ -909,7 +921,7 @@ const AddProductScreen = () => {
           {!isService && (
 
             <View className="bg-white m-3 rounded-2xl p-4 shadow">
-              <Text className="text-base font-semibold mb-3">📝 Basic Information</Text>
+              <Text className="text-base font-semibold mb-3"> Basic Information</Text>
 
               <Text className="text-sm font-semibold text-gray-700">
                 Product Name <Text className="text-red-500">*</Text>
@@ -993,60 +1005,6 @@ const AddProductScreen = () => {
               </View>
 
 
-
-              {/*  Tags Section */}
-              {/* <View className="mt-4">
-                <Text className="text-sm font-semibold text-gray-700 mb-2">Tags</Text>
-
-                <View
-                  className="border border-gray-300 rounded-lg px-3 py-2 flex-row flex-wrap items-center"
-                  style={{
-                    minHeight: 100,
-                    maxHeight: 130,
-                    flexWrap: "wrap",
-                    alignContent: "flex-start",
-                  }}
-                >
-              
-                  {initialTags.map(tag => {
-                    const selected = selectedTags.includes(tag);
-                    return (
-                      <TouchableOpacity
-                        key={tag}
-                        onPress={() => toggleTag(tag)}
-                        className={`rounded-full px-3 py-1 mr-2 mb-2 flex-row items-center ${selected ? "bg-green-500" : "bg-green-100"
-                          }`}
-                      >
-                        <Text className={`text-sm ${selected ? "text-white" : "text-gray-800"}`}>
-                          {tag}
-                        </Text>
-                       
-
-
-                      </TouchableOpacity>
-                    );
-                  })}
-
-                  {selectedTags.length > 0 && (
-                    <Text className="text-gray-700 text-sm">
-                      {selectedTags.join(", ")}
-                    </Text>
-                  )}
-
-                 
-                  <TextInput
-                    ref={inputRef}
-                    value={input}
-                    onChangeText={setInput}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Add tags..."
-                    multiline
-                    blurOnSubmit={false}
-                    returnKeyType="done"
-                    className="text-sm text-gray-700 py-1"
-                  />
-                </View>
-              </View> */}
 
               <View className="mt-4">
                 <Text className="text-sm font-semibold text-gray-700 mb-2">Tags</Text>
@@ -1176,7 +1134,7 @@ const AddProductScreen = () => {
           {!isService && (
 
             <View className="bg-white m-3 rounded-2xl p-4 shadow">
-              <Text className="text-base font-semibold mb-3">💰 Pricing & Inventory</Text>
+              <Text className="text-base font-semibold mb-3">Pricing & Inventory</Text>
 
               {/* Price & Compare Price */}
               <View className="flex-row gap-3 mb-3">
@@ -1197,7 +1155,7 @@ const AddProductScreen = () => {
                 </View>
 
                 <View className="flex-1">
-                  <Text className="text-sm font-semibold text-gray-700">Compare At Price</Text>
+                  <Text className="text-sm font-semibold text-gray-700">Compare At Price <Text className="text-red-500">*</Text></Text>
                   <View className="border border-gray-300 rounded-xl mt-2 bg-white px-3">
                     <TextInput
                       value={comparePrice}
@@ -1281,7 +1239,7 @@ const AddProductScreen = () => {
           {!isService && ( // only show for Product
             selectedCategory === "Plant" ? (
               <View className="bg-white m-3 rounded-2xl p-4 shadow">
-                <Text className="text-base font-semibold mb-3">⚙️ Specifications</Text>
+                <Text className="text-base font-semibold mb-3">Specifications</Text>
                 {/* Plant size picker */}
                 <Text className="text-sm font-semibold text-gray-700">Plant Size</Text>
                 <View className="border border-gray-300 rounded-lg overflow-hidden mb-3 mt-2">
@@ -1540,7 +1498,7 @@ const AddProductScreen = () => {
           {/* 🧰 Service Details */}
           {isService && (
             <View className="bg-white m-3 rounded-2xl p-4 shadow">
-              <Text className="text-base font-semibold mb-3">🧰 Service Details</Text>
+              <Text className="text-base font-semibold mb-3">Service Details</Text>
 
               {/* Service Name */}
               <Text className="text-sm font-semibold text-gray-700 mb-1">
@@ -1600,7 +1558,7 @@ const AddProductScreen = () => {
                 </View>
 
                 <View className="flex-1">
-                  <Text className="text-sm font-semibold text-gray-700">Compare At Price</Text>
+                  <Text className="text-sm font-semibold text-gray-700">Compare At Price <Text className="text-red-500">*</Text></Text>
                   <View className="border border-gray-300 rounded-xl mt-2 bg-white px-3">
                     <TextInput
                       value={serviceComparePrice}
@@ -1719,47 +1677,7 @@ const AddProductScreen = () => {
               </View>
 
 
-              {/* <View className="mt-4">
-                <Text className="text-sm font-semibold text-gray-700 mb-2">Services Benefits</Text>
 
-                <View
-                  className="border border-gray-300 rounded-lg px-3 py-2 flex-row flex-wrap items-center"
-                  style={{
-                    minHeight: 100,
-                    maxHeight: 150,
-                    flexWrap: "wrap",
-                    alignContent: "flex-start",
-                  }}
-                >
-                  {servicesBenefitList.map((benefit, index) => (
-                    <View
-                      key={index}
-                      className="bg-green-100 rounded-full px-3 py-1 mr-2 mb-2 flex-row items-center"
-                    >
-                      <Text className="text-sm text-gray-800">{benefit}</Text>
-                      <TouchableOpacity onPress={() => handleServicesRemoveBenefit(index)}>
-                        <Text className="text-sm text-gray-600 ml-1">✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-
-                  <TextInput
-                    ref={inputRef}
-                    value={servicesBenefit}
-                    onChangeText={setServicesBenefit}
-                    placeholder="Add benefit..."
-                    className="text-sm text-gray-700 py-1 flex-1"
-                    onSubmitEditing={handleAddBenefit}
-                  />
-
-                  <TouchableOpacity
-                    onPress={handleAddBenefit}
-                    className="bg-green-500 px-3 py-1 rounded-full ml-2"
-                  >
-                    <Text className="text-white text-sm">Add</Text>
-                  </TouchableOpacity>
-                </View>
-              </View> */}
 
               <View className="p-4 bg-white rounded-2xl shadow mt-4">
                 <Text className="text-base font-semibold mb-2">Services Benefits</Text>
@@ -1816,7 +1734,7 @@ const AddProductScreen = () => {
           {!isService && (
 
             <View className="bg-white m-3 rounded-2xl p-4 shadow">
-              <Text className="text-base font-semibold mb-3">🚚 Shipping & Delivery</Text>
+              <Text className="text-base font-semibold mb-3">Shipping & Delivery</Text>
 
 
               <View className="flex-row gap-3 mb-3">
@@ -1882,7 +1800,7 @@ const AddProductScreen = () => {
           {!isService && (
 
             <View className="bg-white m-3 rounded-2xl p-4 shadow mb-2 ">
-              <Text className="text-base font-semibold mb-3">👁️ Visibility & Status</Text>
+              <Text className="text-base font-semibold mb-3">Visibility & Status</Text>
               <TouchableOpacity className="flex-row justify-between items-center bg-gray-100 rounded-lg px-4 py-2 mb-2">
                 <Text className="text-gray-700 text-sm font-medium">Publish Product</Text>
                 <Switch value={publish} onValueChange={setPublish} />

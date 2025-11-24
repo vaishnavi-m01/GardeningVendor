@@ -93,8 +93,14 @@ const SignIn = () => {
       }
     } catch (error: any) {
       console.error("Login error:", error?.response?.data || error.message);
-      Alert.alert("Error", "Something went wrong. Please try again.");
-    } finally {
+
+      if (error?.response?.status === 401) {
+        Alert.alert("Login Failed", "Invalid credentials. Please try again.");
+      } else {
+        Alert.alert("Error", "Something went wrong. Please try again.");
+      }
+    }
+    finally {
       setLoading(false);
     }
   };

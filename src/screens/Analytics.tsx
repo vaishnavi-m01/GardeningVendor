@@ -23,8 +23,8 @@ const Analytics = () => {
 
 
   const [keyMetrics, setKeyMetrics] = useState({
-    orders: 0,
-    servicesBooking: 0,
+    totalOrders: 0,
+    totalBookings: 0,
     totalServices: 0,
     totalProducts: 0,
     totalProductCustomers: 0,
@@ -36,9 +36,9 @@ const Analytics = () => {
 
   const metrics = {
     revenue: 85230,
-    orders: keyMetrics.orders,
-    servicesBooking: keyMetrics.totalServices,
-    customers: keyMetrics.orders,
+    orders: keyMetrics.totalOrders,
+    servicesBooking: keyMetrics.totalBookings,
+    customers: keyMetrics.totalOrders,
     products: keyMetrics.totalProducts,
     outOfStock: 12,
     growth: "+18%",
@@ -76,14 +76,14 @@ const Analytics = () => {
       const orderCounts = response.data.counts[1];   // product orders
 
       setKeyMetrics({
-        orders: orderCounts.totalOrders ?? 0,
+        totalOrders: orderCounts.totalOrders ?? 0,
         totalProducts: orderCounts.totalProducts ?? 0,
         totalProductCustomers: orderCounts.totalProductCustomers ?? 0,
         totalProductRevenue: orderCounts.totalProductRevenue ?? 0,
 
 
         totalServices: serviceCounts.totalServices ?? 0,
-        servicesBooking: serviceCounts.totalBookings ?? 0,
+        totalBookings: serviceCounts.totalBookings ?? 0,
         totalServiceCustomers: serviceCounts.totalServiceCustomers ?? 0,
         totalServiceRevenue: serviceCounts.totalServiceRevenue ?? 0,
 
@@ -131,7 +131,7 @@ const Analytics = () => {
     mainCount: selectedType === "Product" ? keyMetrics.totalProducts : keyMetrics.totalServices,
 
     secondTitle: selectedType === "Product" ? "Orders" : "Bookings",
-    secondCount: metrics.orders,
+    secondCount: selectedType === "Product" ? keyMetrics.totalOrders : keyMetrics.totalBookings,
   };
 
 
@@ -260,7 +260,7 @@ const Analytics = () => {
             </TouchableOpacity>
           </View>
 
-        
+
           {/* Row 1 */}
           <View className="flex-row mb-4">
 
@@ -308,7 +308,7 @@ const Analytics = () => {
             <TouchableOpacity
               onPress={() =>
                 // navigation.navigate(selectedType === "Product" ? "Orders" : "Bookings")
-                navigation.navigate("Orders",{type:selectedType})
+                navigation.navigate("Orders", { type: selectedType })
               }
               className={cardStyle}
             >
@@ -381,7 +381,7 @@ const Analytics = () => {
                 <View className="flex-1">
                   <Text className="text-gray-500 text-[13px] font-bold tracking-wide">Revenue</Text>
                   <Text className="text-lg font-bold">
-                   ₹{selectedType === "Product"
+                    ₹{selectedType === "Product"
                       ? keyMetrics.totalProductRevenue
                       : keyMetrics.totalServiceRevenue}
                   </Text>
@@ -454,9 +454,8 @@ const Analytics = () => {
         </View>
 
 
-
         {/* Top Products */}
-        <View className="mb-5">
+        {/* <View className="mb-5">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-gray-900 text-lg font-extrabold">{selectedType ==="Product" ? "Top Product" :"Top Services"}</Text>
             <TouchableOpacity>
@@ -485,7 +484,7 @@ const Analytics = () => {
               </View>
             </View>
           ))}
-        </View>
+        </View> */}
       </View>
     </ScrollView>
   );

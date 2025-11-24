@@ -1,23 +1,28 @@
+import { useNavigation } from "@react-navigation/core";
 import React from "react";
-import { View, Text, Image, TouchableOpacity } from "react-native";
+import { View, Text, Image, TouchableOpacity, ToastAndroid } from "react-native";
+import apiClient from "../api/apiBaseUrl";
 
 type Offer = {
-    id: string;
-    name: string;
-    type: string;
-    imageUrl: any;
+    id: number;
+    product: string;
+    offerName: string;
+    description: string;
+    type: "Product" | "Service";
+    imageUrl?: string;
     status: "ACTIVE" | "SCHEDULED" | "ARCHIVED" | "ENDED";
-    activeUntil: string;
-    extraInfo?: string;
+    validTo: string;
 };
 
 type OfferCardProps = {
     offer: Offer;
-    onEdit: (id: string) => void;
-    onDelete: (id: string) => void;
+    onEdit: (id: string) => void
+    onDelete: (id: number) => void;
 };
 
 const OfferCard: React.FC<OfferCardProps> = ({ offer, onEdit, onDelete }) => {
+    const navigation = useNavigation<any>();
+
     const statusColors: Record<string, { bg: string; text: string; border: string }> = {
         ACTIVE: { bg: "bg-green-100", text: "text-green-800", border: "border-green-500" },
         SCHEDULED: { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-500" },
@@ -27,54 +32,64 @@ const OfferCard: React.FC<OfferCardProps> = ({ offer, onEdit, onDelete }) => {
 
     const colors = statusColors[offer.status];
 
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    };
+
+    const deleteOffer = async () => {
+        try {
+            await apiClient.delete(`api/public/${offer.type === "Product" ? "offers" : "serviceOffers"}/delete/${offer.id}`);
+            ToastAndroid.show("Offer deleted successfully", ToastAndroid.SHORT);
+            onDelete(offer.id);
+        } catch (error) {
+            ToastAndroid.show("Failed to delete offer", ToastAndroid.SHORT);
+            console.log("Delete Error:", error);
+        }
+    };
+
     return (
         <View className={`flex-row bg-white rounded-xl p-4 mb-4 border-l-4 ${colors.border} shadow`}>
-            {/* Product Image */}
+            {/* Offer Image */}
             <Image
-                source={offer.imageUrl}
-                className={`w-16 h-16 rounded-lg border border-gray-100 ${offer.status === "ENDED" || offer.status === "ARCHIVED" ? "opacity-70" : ""
-                    }`}
+                source={{
+                    uri: offer.imageUrl ? offer.imageUrl : "https://via.placeholder.com/150",
+                }}
+                className={`w-16 h-16 rounded-lg border border-gray-100 ${offer.status === "ENDED" || offer.status === "ARCHIVED" ? "opacity-70" : ""}`}
             />
 
             {/* Details */}
             <View className="flex-1 ml-4">
-                <Text
-                    className={`text-lg font-extrabold ${offer.status === "ENDED" || offer.status === "ARCHIVED" ? "text-gray-500 line-through" : "text-gray-900"
-                        } truncate`}
-                >
-                    {offer.name}
-                </Text>
-                <Text
-                    className={`text-sm font-semibold mt-1 ${offer.status === "ENDED" || offer.status === "ARCHIVED" ? "text-gray-400 line-through" : "text-indigo-700"
-                        }`}
-                >
-                    {offer.type}
-                </Text>
-
-
-                {/* Active Until + Status Badge Row */}
-                <View className="flex-row items-center mt-2">
-                    {/* Left: Active Until */}
-                    <Text className="text-xs text-gray-500 flex-1">
-                        Active until: {offer.activeUntil}
+                {offer.offerName ? (
+                    <Text
+                        className={`text-lg font-extrabold ${offer.status === "ENDED" || offer.status === "ARCHIVED"
+                            ? "text-gray-500 line-through"
+                            : "text-gray-900"
+                            } truncate`}
+                    >
+                        {offer.offerName}
                     </Text>
+                ) : null}
 
-                    {/* Right: Status Badge */}
+                <Text>{offer.product}</Text>
+                {offer.description ? (
+                    <Text
+                        className={`text-sm mt-1 ${offer.status === "ENDED" || offer.status === "ARCHIVED"
+                            ? "text-gray-400 line-through"
+                            : "text-gray-700"
+                            }`}
+                            numberOfLines={1}
+                    >
+                        {offer.description}
+                    </Text>
+                ) : null}
 
-                </View>
-
-
-
-                {offer.extraInfo && <Text className="text-xs text-red-600 font-bold mt-1">{offer.extraInfo}</Text>}
-
-
-                <View className="flex-row justify-between items-center">
-
-                    <Text className="text-xs text-gray-400 mt-1">ID: {offer.id}</Text>
-
-                  
-                </View>
-
+                <Text className="text-xs text-gray-500 mt-1">
+                    Active until: {formatDate(offer.validTo)}
+                </Text>
             </View>
 
             {/* Actions */}
@@ -82,26 +97,22 @@ const OfferCard: React.FC<OfferCardProps> = ({ offer, onEdit, onDelete }) => {
                 <View className="flex-row space-x-2 gap-2">
                     <TouchableOpacity
                         disabled={offer.status === "ENDED" || offer.status === "ARCHIVED"}
-                        onPress={() => onEdit(offer.id)}
+                        onPress={() => navigation.navigate("AddOfferForm", { id: offer.id, type: offer.type })}
                         className="p-2 rounded-full bg-gray-100"
                     >
-                        <Text
-                            className={`text-base ${offer.status === "ENDED" || offer.status === "ARCHIVED" ? "text-gray-300" : "text-gray-500"
-                                }`}
-                        >
+                        <Text className={`text-base ${offer.status === "ENDED" || offer.status === "ARCHIVED" ? "text-gray-300" : "text-gray-500"}`}>
                             ✏️
                         </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => onDelete(offer.id)} className="p-2 rounded-full bg-red-50">
+                    <TouchableOpacity onPress={deleteOffer} className="p-2 rounded-full bg-red-50">
                         <Text className="text-red-600 text-base">🗑️</Text>
                     </TouchableOpacity>
                 </View>
-                  <View className={` px-2 py-1 rounded-full items-end mt-10  ${colors.bg}`}>
-                        <Text className={`text-xs font-semibold ${colors.text}`}>
-                            {offer.status.replace("_", " ")}
-                        </Text>
-                    </View>
+
+                <View className={`px-2 py-1 rounded-full mt-6 ${colors.bg}`}>
+                    <Text className={`text-xs font-semibold ${colors.text}`}>{offer.status.replace("_", " ")}</Text>
+                </View>
             </View>
         </View>
     );

@@ -20,6 +20,8 @@ import axios from "axios";
 import apiClient from "../api/apiBaseUrl";
 import { useNavigation } from "@react-navigation/core";
 import GradientHeader from "../utils/GradientHeader";
+import Feather from "react-native-vector-icons/Feather";
+
 
 type Props = NativeStackScreenProps<RootStackParamList, "PlantsSeparateDetails">;
 
@@ -32,6 +34,13 @@ const PlantsSeparateDetails = ({ route }: Props) => {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<any>();
+  const [reviewLimit, setReviewLimit] = useState(5);
+  const remaining =
+    product?.reviewProductDto?.length
+      ? product.reviewProductDto.length - reviewLimit
+      : 0;
+
+
 
   // Resolve image source safely for string uri, local require (number), or product image
   const resolveImageSource = () => {
@@ -181,12 +190,15 @@ const PlantsSeparateDetails = ({ route }: Props) => {
           </View>
 
           {/* Rating */}
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
-            <Ionicons name="star" color="#FFE70C" size={18} />
-            <Text style={{ marginLeft: 4, fontSize: 12, color: "#666" }}>
-              4.2 (3243 Reviews)
-            </Text>
-          </View>
+          {product?.averageRating > 0 && (
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
+              <Ionicons name="star" color="#FFE70C" size={18} />
+              <Text style={{ marginLeft: 4, fontSize: 12, color: "#666" }}>
+                {product.averageRating} ({product.totalRatingCount} Reviews)
+              </Text>
+            </View>
+          )}
+
 
           {/* Description */}
           <Text
@@ -233,7 +245,7 @@ const PlantsSeparateDetails = ({ route }: Props) => {
                 "Safe for all plant types",
                 "Long-lasting and durable",
               ]
-            ).map((benefit:any, index:any) => (
+            ).map((benefit: any, index: any) => (
               <View
                 key={index}
                 style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}
@@ -243,6 +255,149 @@ const PlantsSeparateDetails = ({ route }: Props) => {
               </View>
             ))}
           </View>
+
+          {/* ---------- Review Section ---------- */}
+          {product?.reviewProductDto?.length > 0 && (
+            <View style={{ marginTop: 22, marginBottom: 10, }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: "#2A2A2A",
+                  marginBottom: 10,
+                }}
+              >
+                Reviews
+              </Text>
+
+              <View style={{
+                backgroundColor: "#fff",
+                padding: 14,
+                borderRadius: 10,
+                marginBottom: 14,
+                elevation: 1,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 2,
+              }}>
+                {product.reviewProductDto
+                  .slice(0, reviewLimit)
+                  .map((review: any, index: any) => (
+                    <View
+                      key={index}
+                      style={{
+                        backgroundColor: "#F9F9F9",
+                        padding: 12,
+                        borderRadius: 10,
+                        marginBottom: 12,
+                        borderWidth: 1,
+                        borderColor: "#EFEFEF",
+                      }}
+                    >
+                      {/* Username + Verified + Date */}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <Text style={{ fontSize: 14, fontWeight: "600", color: "#2A2A2A" }}>
+                            {review.userName}
+                          </Text>
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={16}
+                            color="#22C55E"
+                            style={{ marginLeft: 6 }}
+                          />
+                          <Text style={{ fontSize: 11, color: "#22C55E", marginLeft: 4 }}>
+                            Verified
+                          </Text>
+                        </View>
+
+                        {/* Date format: Oct 17, 2025 */}
+                        {review?.createdDate && (
+                          <Text style={{ fontSize: 11, color: "#999" }}>
+                            {(() => {
+                              const date = new Date(review.createdDate);
+                              const months = [
+                                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+                              ];
+                              return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+                            })()}
+                          </Text>
+                        )}
+                      </View>
+
+                      {/* Stars */}
+                      <View style={{ flexDirection: "row", marginTop: 6 }}>
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Ionicons
+                            key={i}
+                            name={i < review.rating ? "star" : "star-outline"} 
+                            size={14}
+                            color="#FFD60A"
+                          />
+                        ))}
+                      </View>
+
+
+                      {/* Review text */}
+                      {review.reviewText ? (
+                        <Text
+                          style={{
+                            marginTop: 6,
+                            fontSize: 13,
+                            color: "#555",
+                            lineHeight: 19,
+                            textAlign: "justify",
+                          }}
+                        >
+                          {review.reviewText}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ))}
+
+                {/* Load More Reviews Button */}
+
+                {product.reviewProductDto.length > reviewLimit && (
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginTop: 12
+                    }}
+                    onPress={() => {
+                      setReviewLimit(prev => prev + 5);
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: "#0A8A2A",
+                        marginRight: 6,
+                      }}
+                    >
+                      Load More Review ({remaining} remaining)
+                    </Text>
+                    <Feather name="chevron-down" size={18} color="#0A8A2A" />
+                  </TouchableOpacity>
+                )}
+
+              </View>
+
+
+
+            </View>
+          )}
+
 
 
         </ScrollView>
