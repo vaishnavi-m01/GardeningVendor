@@ -141,16 +141,21 @@ const Offers = () => {
             const sortedResponse = response.data.sort((a: any, b: any) => b.id - a.id);
 
             const formattedData: Offer[] = sortedResponse.map((item: any) => {
+                const today = new Date();
+                const startDate = new Date(item.validFrom);
+                const endDate = new Date(item.validTo);
+                // let status: "ACTIVE" | "SCHEDULED" | "ARCHIVED";
+
                 let status: "ACTIVE" | "SCHEDULED" | "ARCHIVED";
 
-                if (item.activeStatus === false) {
-                    status = "ARCHIVED";
-                } else if (today < item.validFrom) {
+                if (today < startDate) {
                     status = "SCHEDULED";
-                } else if (today > item.validTo) {
+                } else if (today > endDate) {
                     status = "ARCHIVED";
-                } else {
+                } else if (item.activeStatus === true) {
                     status = "ACTIVE";
+                } else {
+                    status = "ARCHIVED";
                 }
 
                 return {
@@ -171,10 +176,9 @@ const Offers = () => {
         }
     };
 
-
-
     useFocusEffect(
         useCallback(() => {
+            setOffers([]);
             fetchOffers();
         }, [selectedType])
     );

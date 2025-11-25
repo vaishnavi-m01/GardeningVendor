@@ -97,6 +97,7 @@ const Products = () => {
 
   // items holds both products and services (type field)
   const [products, setProducts] = useState<any[]>([]);
+  console.log("products", products)
   const [loading, setLoading] = useState(true);
   const [subLoading, setSubLoading] = useState(false);
 
@@ -248,11 +249,13 @@ const Products = () => {
           id: p.id,
           name: p.productName,
           price: p.price,
+          offerPrice: p.offerPrice,
           imageUrl: p.imageUrl,
           stockQuantity: p.stockQuantity,
           subCategoryName: p.subCategoryName,
           activeStatus: p.activeStatus,
           averageRating: p.averageRating,
+          soldQuantity: p.soldQuantity,
           type: "product",
         }))
         : [];
@@ -610,19 +613,42 @@ const Products = () => {
             >
               {/* Image */}
               <View style={{ position: "relative", width: "100%", height: 120 }}>
-                <Image source={{ uri: item.imageUrl }} resizeMode="cover" style={{ width: "100%", height: "100%" }} />
+                <Image
+                  source={{
+                    uri: item.imageUrl
+                      ? item.imageUrl
+                      : "https://www.generationsforpeace.org/wp-content/uploads/2018/03/empty.jpg",
+                  }}
+                  resizeMode="cover"
+                  style={{ width: "100%", height: "100%", borderRadius: 8 }}
+                  onError={() => {
+                    item.imageUrl = "https://www.generationsforpeace.org/wp-content/uploads/2018/03/empty.jpg";
+                  }}
+                />
+
                 {item.stockQuantity !== undefined && (
-                  <View style={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 12,
-                    backgroundColor: item.stockQuantity > 10 ? "#d4edda" : item.stockQuantity > 0 ? "rgba(245, 158, 11, 0.9)" : "rgba(239, 68, 68, 0.9)",
-                  }}>
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      right: 8,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      backgroundColor:
+                        item.stockQuantity > 10
+                          ? "#d4edda"
+                          : item.stockQuantity > 0
+                            ? "rgba(245, 158, 11, 0.9)"
+                            : "rgba(239, 68, 68, 0.9)",
+                    }}
+                  >
                     <Text style={{ fontSize: 9, fontWeight: "700", color: "#155724" }}>
-                      {item.stockQuantity > 10 ? "In Stock" : item.stockQuantity > 0 ? "Low Stock" : "Out of Stock"}
+                      {item.stockQuantity > 10
+                        ? "In Stock"
+                        : item.stockQuantity > 0
+                          ? "Low Stock"
+                          : "Out of Stock"}
                     </Text>
                   </View>
                 )}
@@ -639,7 +665,25 @@ const Products = () => {
                 )}
 
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                  {item.price && <Text style={{ fontSize: 15, fontWeight: "800", color: "#358362" }}>₹{item.price}</Text>}
+                  {/* {item.price && <Text style={{ fontSize: 15, fontWeight: "800", color: "#358362" }}>₹ {Math.round(item.price)}</Text>} */}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    {item.offerPrice ? (
+                      <>
+                        <Text style={{ fontSize: 15, fontWeight: "bold", color: "#16a34a" }}>
+                          ₹{Math.round(item.offerPrice)}
+
+                        </Text>
+                        <Text style={{ fontSize: 13, color: "#9ca3af", textDecorationLine: "line-through" }}>
+                          ₹{Math.round(item.price)}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{ fontSize: 15, fontWeight: "bold", color: "#111827" }}>
+                        ₹{Math.round(item.price)}
+                      </Text>
+                    )}
+                  </View>
+
                   {item.stockQuantity !== undefined && <Text style={{ fontSize: 11, fontWeight: "600", color: item.stockQuantity > 10 ? "#16a34a" : item.stockQuantity > 0 ? "#f59e0b" : "#ef4444" }}>Stock: {item.stockQuantity}</Text>}
 
                 </View>
@@ -647,12 +691,14 @@ const Products = () => {
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, justifyContent: "space-between" }}>
 
                     {/* Duration Left */}
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Ionicons name="time-outline" size={14} color="#555" />
-                      <Text style={{ marginLeft: 4, fontSize: 13, color: "#444" }}>
-                        {item.duration || "-"}
-                      </Text>
-                    </View>
+                    {item?.duration ? (
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Ionicons name="time-outline" size={14} color="#555" />
+                        <Text style={{ marginLeft: 4, fontSize: 13, color: "#444" }}>
+                          {item.duration}
+                        </Text>
+                      </View>
+                    ) : null}
 
                     {/* Rating Right — show only if rating exists */}
                     {item.averageRating > 0 && (
@@ -681,7 +727,7 @@ const Products = () => {
                     )}
 
 
-                    <Text style={{ fontSize: 11, color: "#94a3b8" }}>{item.soldCount ? `${item.soldCount} Sold` : "95 Sold"}</Text>
+                    <Text style={{ fontSize: 11, color: "#94a3b8" }}>{item.soldQuantity ? `${item.soldQuantity} Sold` : ""}</Text>
                   </View>
                 )}
 

@@ -290,7 +290,7 @@ const AddOfferForm = () => {
         try {
             setSaving(true);
             if (id) {
-                // Update existing offer
+
                 await apiClient.put(`api/public/offers/update/${id}`, payload);
                 ToastAndroid.show("Offer Updated Successfully! 🎉", ToastAndroid.SHORT);
             } else {
@@ -301,8 +301,15 @@ const AddOfferForm = () => {
             navigation.navigate("Offers", { type: selectedType });
         } catch (error: any) {
             console.log("Error saving offer:", error.response?.data || error.message);
-            Alert.alert("Failed to save offer");
-        } finally {
+
+            if (error.response?.status === 500) {
+                Alert.alert("This product already has an active offer");
+            } else {
+                Alert.alert("Failed to save offer");
+            }
+        }
+
+        finally {
             setSaving(false);
         }
     };
@@ -346,16 +353,17 @@ const AddOfferForm = () => {
             navigation.navigate("Offers", { type: selectedType });
 
         } catch (error: any) {
-            console.log(" Api error ", error.response?.data || error.message);
-            Alert.alert("Failed to save offer");
-        } finally {
+            console.log("Error saving offer:", error.response?.data || error.message);
+            if (error.response?.status === 500) {
+                Alert.alert("This Services already has an active offer");
+            } else {
+                Alert.alert("Failed to save offer");
+            }
+        }
+        finally {
             setSaving(false);
         }
     };
-
-
-
-
 
 
     return (
@@ -446,7 +454,7 @@ const AddOfferForm = () => {
                                             className="flex-1 h-12 text-lg"
                                             keyboardType="numeric"
                                             placeholder=""
-                                            value={price !== null ? price.toString() : ""}
+                                            value={price !== null ? Math.round(price).toString() : ""}
                                             editable={false}
                                         />
                                     </View>
@@ -662,7 +670,7 @@ const AddOfferForm = () => {
                                                     display="default"
                                                     onChange={(e, date) => {
                                                         setServicesStartPicker(false);
-                                                        if (date) setStartDate(date);
+                                                        if (date) setServicesStartDate(date);
                                                     }}
                                                 />
                                             )}

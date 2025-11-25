@@ -12,6 +12,8 @@ import {
     Image,
     Alert,
     ToastAndroid,
+    Platform,
+    Modal,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import AppHeader from "../utils/AppHeader";
@@ -21,6 +23,8 @@ import { useVendor } from "../context/VendorContext";
 import apiClient from "../api/apiBaseUrl";
 import { ActivityIndicator } from "react-native-paper";
 import { launchImageLibrary } from 'react-native-image-picker';
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+
 
 
 
@@ -49,6 +53,7 @@ const ProfileScreen: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [uploading, setUploading] = useState<boolean>(false);
     const [userId, setUserId] = useState<string | null>(null);
+    const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
 
 
@@ -150,18 +155,41 @@ const ProfileScreen: React.FC = () => {
 
 
 
-    const handleLogout = async () => {
-        try {
+    // const handleLogout = async () => {
+    //     try {
 
-            await AsyncStorage.clear();
-            console.log("User logged out, AsyncStorage cleared");
-            navigation.reset({
+    //         await AsyncStorage.clear();
+    //         console.log("User logged out, AsyncStorage cleared");
+    //         navigation.reset({
+    //             index: 0,
+    //             routes: [{ name: "SignIn" }],
+    //         });
+    //     } catch (error) {
+    //         console.error("Error clearing AsyncStorage:", error);
+    //     }
+    // };
+
+
+    const confirmLogout = () => {
+        setIsLogoutModalVisible(true);
+    };
+
+    const handleLogout = async () => {
+        await AsyncStorage.removeItem("vendorData");
+        setIsLogoutModalVisible(false);
+        if (Platform.OS === "android") {
+            ToastAndroid.show("Logout successful", ToastAndroid.SHORT);
+              navigation.reset({
                 index: 0,
-                routes: [{ name: "SignIn" }],
+               routes: [{ name: "SignIn" }],
             });
-        } catch (error) {
-            console.error("Error clearing AsyncStorage:", error);
+        } else {
+            Alert.alert("Logout successful");
         }
+    };
+
+    const cancelLogout = () => {
+        setIsLogoutModalVisible(false);
     };
 
     return (
@@ -664,26 +692,52 @@ const ProfileScreen: React.FC = () => {
                     </View> */}
 
                     {/* Logout Button */}
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        className="w-full rounded-xl py-4 items-center justify-center"
-                        style={{
-                            backgroundColor: "#fff",
-                            borderWidth: 2,
-                            borderColor: "#dc3545",
-                            marginTop: 30,
-                        }}
-
-                        onPress={handleLogout}
-                    >
-                        <Text style={{ color: "#dc3545", fontWeight: "700" }}>🚪 Logout</Text>
+                    <TouchableOpacity style={styles.logoutButton} onPress={confirmLogout}>
+                        {/* <View style={styles.logoutIcon}>
+                            <MaterialCommunityIcons
+                                name="logout"
+                                size={22}
+                                color="#ef4444"
+                            />
+                        </View> */}
+                        <Text style={[styles.logoutText, { flex: 1 }]}>
+                            Logout
+                        </Text>
                     </TouchableOpacity>
+
 
                     {/* App Version */}
                     <View className="items-center mt-4 mb-8">
                         <Text className="text-[12px] text-[#999]">RoofGarden Vendor App v2.5.0</Text>
                     </View>
                 </View>
+
+                <Modal
+                    visible={isLogoutModalVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={cancelLogout}
+                >
+                    <View style={styles.modalBackground}>
+                        <View style={styles.modalContainer}>
+                            <Text style={styles.modalTitle}>Are you sure you want to logout?</Text>
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={styles.modalButtonCancel}
+                                    onPress={cancelLogout}
+                                >
+                                    <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.modalButtonConfirm}
+                                    onPress={handleLogout}
+                                >
+                                    <Text style={styles.modalButtonTextConfirm}>Logout</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             </ScrollView>
 
 
@@ -792,5 +846,93 @@ const styles = StyleSheet.create({
     },
     activeNavItem: {
         // any extra styling for active
+    },
+
+    logoutButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 14,
+        paddingHorizontal: 8,
+        borderRadius: 12,
+        backgroundColor: "#fef2f2",
+        borderWidth: 1,
+        borderColor: "#fecaca",
+        marginHorizontal: 6,
+        marginTop: 20,
+        // justifyContent:"center"
+    },
+    logoutIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: "#fee2e2",
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 16,
+    },
+    logoutText: {
+        fontSize: 16,
+        color: "#ef4444",
+        fontWeight: "600",
+        textAlign: "center",
+        alignSelf: "center",
+        alignContent: "center"
+    },
+
+
+    modalBackground: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.4)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    modalContainer: {
+        width: width * 0.8,
+        backgroundColor: "#fff",
+        borderRadius: 12,
+        padding: 20,
+        alignItems: "center",
+    },
+    modalTitle: {
+        fontSize: 17,
+        fontWeight: "600",
+        color: "#111827",
+        textAlign: "center",
+        marginBottom: 20,
+    },
+    modalButtons: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        width: "100%",
+    },
+    modalButtonCancel: {
+        flex: 1,
+        marginRight: 10,
+        paddingVertical: 12,
+        borderRadius: 8,
+        backgroundColor: "#f9fafb",
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: "#e5e7eb",
+    },
+    modalButtonTextCancel: {
+        color: "#111827",
+        fontSize: 16,
+        fontWeight: "500",
+    },
+    modalButtonConfirm: {
+        flex: 1,
+        marginLeft: 10,
+        paddingVertical: 12,
+        borderRadius: 8,
+        backgroundColor: "#fee2e2",
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: "#fecaca",
+    },
+    modalButtonTextConfirm: {
+        color: "#ef4444",
+        fontSize: 16,
+        fontWeight: "600",
     },
 });

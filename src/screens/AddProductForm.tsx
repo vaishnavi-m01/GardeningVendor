@@ -167,7 +167,7 @@ const AddProductScreen = () => {
 
   useEffect(() => {
     if (route?.params?.type) {
-      setIsService(route.params.type === "Service"); 
+      setIsService(route.params.type === "Service");
     }
   }, [route?.params?.type]);
 
@@ -398,9 +398,18 @@ const AddProductScreen = () => {
     if (!productName.trim()) return Alert.alert("Validation", "Please enter product name");
     if (!category.trim()) return Alert.alert("Validation", "Please select a category");
     if (!subcategory.trim()) return Alert.alert("Validation", "Please select a subcategory");
-    if (!description.trim()) return Alert.alert("Validation", "Please enter a description");
+    // if (!description.trim()) return Alert.alert("Validation", "Please enter a description");
     if (!price.trim()) return Alert.alert("Validation", "Please enter product price");
-    if (!comparePrice.trim()) return Alert.alert("Validation", "Please enter product Compare At price");
+    if (!comparePrice.trim()) {
+      return Alert.alert("Validation", "Please enter Compare At Price");
+    }
+
+    if (Number(comparePrice) < Number(price)) {
+      return Alert.alert(
+        "Validation",
+        "Compare At Price must be greater than or equal to Price"
+      );
+    }
     if (!stock.trim()) return Alert.alert("Validation", "Please enter product stock quantity");
 
     setLoading(true);
@@ -670,10 +679,19 @@ const AddProductScreen = () => {
 
     // Validations
     if (!serviceName.trim()) return Alert.alert("Validation", "Please enter service name");
-    if (!serviceDescription.trim()) return Alert.alert("Validation", "Please enter description");
+    // if (!serviceDescription.trim()) return Alert.alert("Validation", "Please enter description");
     if (!servicePrice.trim()) return Alert.alert("Validation", "Please enter price");
-    if (!serviceComparePrice.trim()) return Alert.alert("Validation", "Please enter Compare at Price")
-    if (!serviceDuration.trim()) return Alert.alert("Validation", "Please enter duration");
+    if (!serviceComparePrice.trim()) {
+      return Alert.alert("Validation", "Please enter Compare at Price");
+    }
+
+    if (Number(serviceComparePrice) < Number(servicePrice)) {
+      return Alert.alert(
+        "Validation",
+        "Compare at Price should not be less than Price"
+      );
+    }
+    // if (!serviceDuration.trim()) return Alert.alert("Validation", "Please enter duration");
 
     setLoading(true);
 
@@ -1072,7 +1090,7 @@ const AddProductScreen = () => {
 
 
               <Text className="text-sm font-semibold text-gray-700 mt-3">
-                Description <Text className="text-red-500">*</Text>
+                Description
               </Text>
 
               <View className="border border-gray-300 rounded-xl mt-2 mb-3 bg-white px-3">
@@ -1519,11 +1537,9 @@ const AddProductScreen = () => {
                 onSelect={(id) => setServiceSubCategoryId(id)}
               />
 
-
-
               {/* Service Description */}
               <Text className="text-sm font-semibold text-gray-700 mb-1">
-                Service Description <Text className="text-red-500">*</Text>
+                Service Description
               </Text>
               <View className="border border-gray-300 rounded-xl mt-2 mb-3 bg-white px-3">
                 <TextInput
@@ -1574,7 +1590,7 @@ const AddProductScreen = () => {
 
               {/* Service Duration */}
               <Text className="text-sm font-semibold text-gray-700 mb-1">
-                Service Duration (Hours)
+                Service Duration
               </Text>
               <View className="border border-gray-300 rounded-xl mt-2 mb-3 bg-white px-3">
                 <TextInput
