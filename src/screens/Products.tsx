@@ -189,7 +189,7 @@ const Products = () => {
           </View>
         </View>
 
-        <View className="bg-gray-50 px-4 pt-5 pb-5">
+        {/* <View className="bg-gray-50 px-4 pt-5 pb-5">
           <View className="flex-row justify-between items-center mb-4">
             <View className="mb-4">
               <Text className="text-gray-900 text-lg font-extrabold">
@@ -222,7 +222,7 @@ const Products = () => {
               </View>
             </View>
           </View>
-        </View>
+        </View> */}
 
         {/* Main Content */}
         <View className="px-3 pt-4">

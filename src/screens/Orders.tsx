@@ -10,6 +10,7 @@ import apiClient from "../api/apiBaseUrl";
 import Toast from "react-native-toast-message";
 import GradientHeader from "../utils/GradientHeader";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { getMonthRange, getTodayRange, getWeekRange, getYearRange } from "../utils/DateRange";
 
 
 type OrdersScreenParams = {
@@ -34,6 +35,7 @@ type Order = {
     isService?: boolean;
     orderStatus: string;
     orderDto?: OrderItem[];
+    createdDate: string;
 };
 
 type ServiceBooking = {
@@ -56,12 +58,18 @@ const Orders = () => {
     const [range, setRange] = useState("today");
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [recentOrders, setRecentOrders] = useState<any[]>([]);
+    console.log("recentOrders", recentOrders);
+
     const [addresses, setAddresses] = useState<{ [key: number]: string }>({});
     const [selectedType, setSelectedType] = useState<"Product" | "Service">("Product");
     const [bookings, setBookings] = useState<ServiceBooking[]>([]);
+    console.log("recentBookings", bookings)
     const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
     const scaleAnim = useRef(new Animated.Value(1)).current;
     const [statusData, setStatusData] = useState<any>([]);
+
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
     const animatePress = () => {
         Animated.sequence([
@@ -174,11 +182,28 @@ const Orders = () => {
         }
     };
 
+
+    const handleRangeChange = (value: any) => {
+        setRange(value);
+
+        let rangeValues = { startDate: "", endDate: "" };
+
+        if (value === "today") rangeValues = getTodayRange();
+        if (value === "weekly") rangeValues = getWeekRange();
+        if (value === "monthly") rangeValues = getMonthRange();
+        if (value === "yearly") rangeValues = getYearRange();
+
+        setStartDate(rangeValues.startDate);
+        setEndDate(rangeValues.endDate);
+
+        fetchDashboardCounts(rangeValues.startDate, rangeValues.endDate);
+    };
+
     //fetchDashboardCount
-    const fetchDashboardCounts = async () => {
+    const fetchDashboardCounts = async (start: any, end: any) => {
         try {
             const response = await apiClient.get(
-                `api/public/dashboard/totalStatusCounts?vendorId=${vendorData?.id}`
+                `api/public/dashboard/totalStatusCounts?vendorId= ${vendorData?.id}&startDate=${start}&endDate=${end}`
             );
 
             const bookings = response.data.counts[0];
@@ -222,8 +247,11 @@ const Orders = () => {
     };
 
 
-    useEffect(() => {
-        fetchDashboardCounts();
+    React.useEffect(() => {
+        const { startDate, endDate } = getTodayRange();
+        setStartDate(startDate);
+        setEndDate(endDate);
+        fetchDashboardCounts(startDate, endDate);
     }, [selectedType]);
 
 
@@ -237,37 +265,56 @@ const Orders = () => {
     };
 
 
-    const fetchOrdersData = async () => {
+    const fetchRecentOrdersAndBookings = async (start: any, end: any) => {
         try {
-            const response = await apiClient.get(`api/public/order/getAll?vendorId=${vendorData?.id}`);
-            console.log("Orders data:", response.data);
-
-            // Sort by createdDate descending
-            const sortedOrders = response.data.sort(
-                (a: any, b: any) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
+            const response = await apiClient.get(
+                `api/public/dashboard/getRecentOrdersAndBookings?vendorId=${vendorData?.id}&startDate=${start}&endDate=${end}`
             );
 
-            // Take latest 4 orders
-            const latestOrders = sortedOrders.slice(0, 4).map((order: any) => ({
-                id: order.id,
-                customer: order.userName,
+            const { recentProductOrders, recentServiceBookings } = response.data;
+
+            //  RECENT PRODUCT ORDERS
+            const latestOrders = recentProductOrders.map((order: any) => ({
+                id: order.orderId,
+                productId: order.productId,
+                customer: order.name,
                 status: order.orderStatus,
-                amount: order.totalAmount,
+                productName: order.productName,
+                userId: order.userId,
+                totalAmount:order.totalAmount
             }));
 
             setRecentOrders(latestOrders);
-            latestOrders.forEach((order: any) => {
-                if (order.addressId) fetchAddress(Number(order.addressId));
-            });
+
+
+            //  RECENT SERVICE BOOKINGS
+            const formattedBookings = recentServiceBookings.map((b: any) => ({
+                id: b.serviceBookingId,
+                bookingId: b.serviceBookingId,
+                serviceId: b.serviceId,
+                serviceName: b.serviceName,
+                userName: b.name,
+                bookingStatus: b.orderStatus,
+                userId: b.userId,
+                totalAmount:b.totalAmount
+            }));
+
+            setBookings(formattedBookings); 
+
         } catch (error) {
-            console.log("Error fetching orders data:", error);
+            console.log("Error fetching recent orders & bookings:", error);
         }
     };
 
 
     useEffect(() => {
-        fetchOrdersData();
-    }, []);
+        if (!vendorData?.id) return;
+
+        if (startDate && endDate) {
+            fetchRecentOrdersAndBookings(startDate, endDate);
+        }
+    }, [vendorData, startDate, endDate]);
+
 
     const handleOpenModal = async (orderId: number) => {
         setLoading(true);
@@ -294,56 +341,7 @@ const Orders = () => {
 
 
 
-    const fetchServiceBookings = async (vendorId: string) => {
-        try {
-            setLoading(true);
 
-            const response = await apiClient.get(`api/public/serviceBooking/getAll?vendorId=${vendorId}`);
-            const allBookings = response.data || [];
-
-            // Filter out PENDING_PAYMENT and ORDER_REQUESTED
-            const filteredBookings = allBookings.filter(
-                (b: any) => b.orderStatus !== "PENDING_PAYMENT" && b.orderStatus !== "ORDER_REQUESTED"
-            );
-
-            // Sort latest first
-            const sortedBookings = filteredBookings.sort(
-                (a: any, b: any) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
-            );
-
-            const latestBookings = sortedBookings.slice(0, 4);
-
-
-            const formattedBookings: ServiceBooking[] = latestBookings.map((b: any) => ({
-                id: b.id,
-                bookingId: b.serviceBookingId,
-                serviceName: b.serviceName,
-                userName: b.userName,
-                bookingDate: b.createdDate,
-                bookingStatus: b.orderStatus,
-                totalAmount: b.totalAmount,
-                description: `${b.addressName1}, ${b.addressName2}`,
-            }));
-
-            setBookings(formattedBookings);
-        } catch (e) {
-            console.error("Error fetching service bookings:", e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-
-
-    useFocusEffect(
-        useCallback(() => {
-            if (vendorData?.id) {
-                fetchServiceBookings(vendorData.id);
-            } else {
-                fetchServiceBookings("");
-            }
-        }, [vendorData])
-    );
 
     const handleOpenServicesModal = async (bookingsId: number) => {
         setLoading(true);
@@ -363,6 +361,25 @@ const Orders = () => {
     const handleCloseServicesModal = () => {
         setSelectedbookings(null);
         setServicesModal(false);
+    };
+
+    //formate date and time
+
+    const formatDateTime = (dateString: string): string => {
+        const date = new Date(dateString);
+
+        const day = String(date.getDate()).padStart(2, "0"); // dd
+        const month = String(date.getMonth() + 1).padStart(2, "0"); // mm
+        const year = date.getFullYear(); // yyyy
+
+        const hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+
+        // Convert 24h to 12h format
+        const hours12 = hours % 12 === 0 ? 12 : hours % 12;
+        const ampm = hours >= 12 ? "PM" : "AM";
+
+        return `${day}-${month}-${year} ${hours12}:${minutes} ${ampm}`;
     };
 
 
@@ -443,7 +460,8 @@ const Orders = () => {
                             <View className="bg-white rounded-xl px-2 h-11 justify-center border border-gray-200 overflow-hidden">
                                 <Picker
                                     selectedValue={range}
-                                    onValueChange={(v) => setRange(v)}
+                                    onValueChange={(v) => handleRangeChange(v)}
+
                                     dropdownIconColor="#16a34a"
                                     style={{ height: 55, width: "100%", color: "#111827" }}
                                     mode={Platform.OS === "ios" ? "dialog" : "dropdown"}
@@ -709,6 +727,8 @@ const Orders = () => {
                                                                 <Text className="text-base font-bold text-gray-900 mb-1">
                                                                     #{selectedOrder.productOrderId}
                                                                 </Text>
+                                                                <Text style={{ fontSize: 12, color: "#6b7280" }}>{formatDateTime(selectedOrder.createdDate)}</Text>
+
                                                             </View>
 
                                                             {/* Status Badge */}
@@ -824,6 +844,38 @@ const Orders = () => {
                                                     </View>
 
                                                     {/* Amounts */}
+
+                                                    {selectedOrder.orderDto && (
+                                                        <View style={{ marginBottom: 6 }}>
+                                                            <Text
+                                                                style={{
+                                                                    fontSize: 12,
+                                                                    fontWeight: "700",
+                                                                    color: selectedOrder.isService ? "#9a3412" : "#1e3a8a",
+                                                                    backgroundColor: selectedOrder.isService ? "#fff4e6" : "#e7f5ff",
+                                                                    width: "100%",
+                                                                    paddingHorizontal: 10,
+                                                                    paddingVertical: 8,
+                                                                    borderRadius: 8,
+                                                                    marginBottom: 6,
+                                                                    // textAlign: "center",      
+                                                                }}
+                                                            >
+                                                                {selectedOrder.isService ? "🛠 Service" : "🌿 Products"}
+                                                            </Text>
+
+
+                                                            {selectedOrder.orderDto.map((item, idx) => (
+                                                                <View key={idx} style={{ flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#eef2f7", paddingVertical: 6 }}>
+                                                                    <Text style={{ flex: 1, color: "#111827", fontSize: 13 }}>{item.productName}</Text>
+                                                                    {!selectedOrder.isService && (
+                                                                        <Text style={{ color: "#6b7280", marginHorizontal: 8 }}>x{item.quantity}</Text>
+                                                                    )}
+                                                                    <Text style={{ fontWeight: "700", color: "#111827" }}>₹{item.price}</Text>
+                                                                </View>
+                                                            ))}
+                                                        </View>
+                                                    )}
                                                     <View
                                                         style={{
                                                             marginTop: 12,
@@ -993,7 +1045,7 @@ const Orders = () => {
                                             </View>
                                             <View className="flex-1">
                                                 <Text className="text-gray-900 text-[15px] font-bold">{order.customer}</Text>
-                                                <Text className="text-gray-500 text-[12px] mt-1">₹{order.amount}</Text>
+                                                <Text className="text-gray-500 text-[12px] mt-1">₹{order.totalAmount}</Text>
                                             </View>
                                         </View>
                                         <View className={`px-3 py-2 rounded-lg ${colors.bg}`}>
@@ -1038,6 +1090,9 @@ const Orders = () => {
                                                     <Text className="text-base font-bold text-gray-900">
                                                         #{selectedServicesbookings.serviceBookingId}
                                                     </Text>
+
+                                                    <Text style={{ fontSize: 12, color: "#6b7280" }}>{formatDateTime(selectedServicesbookings.createdDate)}</Text>
+
                                                 </View>
 
 
@@ -1100,6 +1155,22 @@ const Orders = () => {
                                                 </TouchableOpacity>
                                             </View>
 
+                                            <Text
+                                                style={{
+                                                    fontSize: 12,
+                                                    fontWeight: "700",
+                                                    color: "#9a3412",
+                                                    backgroundColor: "#fff4e6",
+                                                    width: "100%",
+                                                    paddingHorizontal: 10,
+                                                    paddingVertical: 8,
+                                                    borderRadius: 8,
+                                                    marginBottom: 6,
+                                                    // textAlign: "center",      
+                                                }}
+                                            >
+                                                🛠 Service
+                                            </Text>
 
                                             {/* Amounts */}
                                             <View
@@ -1125,7 +1196,7 @@ const Orders = () => {
                                                         borderTopColor: "#e6eef3",
                                                     }}
                                                 >
-                                                    <Text style={{ fontSize: 15, fontWeight: "700", color: "#111827" }}>Total Amount</Text>
+                                                    <Text style={{ fontSize: 14, fontWeight: "500", color: "#111827" }}>Total Amount</Text>
                                                     <Text style={{ fontSize: 15, fontWeight: "900", color: "#40916c" }}>
                                                         ₹{selectedServicesbookings.totalAmount}
                                                     </Text>

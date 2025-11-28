@@ -9,6 +9,8 @@ import {
   Platform,
   ToastAndroid,
   Alert,
+  RefreshControl,
+  Modal,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -69,6 +71,14 @@ const OrdersScreen: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const navigation = useNavigation<any>();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [selectedIsService, setSelectedIsService] = useState(false);
+
+
   const [tabCounts, setTabCounts] = useState<TabCounts>({
     All: 0,
     CONFIRMED: 0,
@@ -148,14 +158,14 @@ const OrdersScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       if (vendorData?.id) {
-        fetchOrders(vendorData.id);
+        fetchOrders(vendorData.id, true);
       }
     }, [vendorData])
   );
 
-  const fetchOrders = async (vendorId: string) => {
+  const fetchOrders = async (vendorId: string, initialLoad = false) => {
     try {
-      setLoading(true);
+      if (initialLoad) setLoading(true); // only show main spinner for first load
 
       const safeDate = (d: any) => {
         const time = new Date(d).getTime();
@@ -170,18 +180,14 @@ const OrdersScreen: React.FC = () => {
       fetchedOrders = fetchedOrders.filter((o) => o.orderStatus !== "PENDING_PAYMENT");
 
       // Fetch service bookings
-      // Fetch service bookings
       const serviceResponse = await apiClient.get<any[]>(
         `api/public/serviceBooking/getAll?vendorId=${vendorId}`
       );
       const serviceBookings = serviceResponse.data || [];
-
-      // Filter out PENDING_PAYMENT services
       const serviceBookingsFiltered = serviceBookings.filter(
         (s) => s.orderStatus !== "PENDING_PAYMENT"
       );
 
-      // Map services
       const mappedServices: Order[] = serviceBookingsFiltered.map((s) => ({
         id: s.id,
         productOrderId: s.serviceBookingId || `SB-${s.id}`,
@@ -203,23 +209,20 @@ const OrdersScreen: React.FC = () => {
         isService: true,
       }));
 
-
       const allOrders = [...fetchedOrders, ...mappedServices];
 
       const sortedOrders = allOrders.sort((a, b) => {
         const dateDiff = safeDate(b.createdDate) - safeDate(a.createdDate);
-        if (dateDiff !== 0) return dateDiff;
-        return b.id - a.id;
+        return dateDiff !== 0 ? dateDiff : b.id - a.id;
       });
 
       setOrders(sortedOrders);
 
-
+      // fetch addresses
       sortedOrders.forEach((order) => {
         if (order.addressId) fetchAddress(Number(order.addressId));
       });
 
-      // Keep original overall counts (optional)
       const counts: TabCounts = {
         All: sortedOrders.length,
         PENDINGREQUEST: sortedOrders.filter((o) => o.orderStatus === "ORDER_REQUESTED").length,
@@ -233,7 +236,19 @@ const OrdersScreen: React.FC = () => {
     } catch (error) {
       console.error("Error fetching orders:", error);
     } finally {
-      setLoading(false);
+      if (initialLoad) setLoading(false);
+    }
+  };
+
+
+
+  const onRefresh = async () => {
+    if (!vendorData?.id) return;
+    setRefreshing(true);
+    try {
+      await fetchOrders(vendorData.id, false);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -350,10 +365,24 @@ const OrdersScreen: React.FC = () => {
 
 
 
-  const formatTime = (dateString: string): string => {
+  const formatDateTime = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    const day = String(date.getDate()).padStart(2, "0"); // dd
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // mm
+    const year = date.getFullYear(); // yyyy
+
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    // Convert 24h to 12h format
+    const hours12 = hours % 12 === 0 ? 12 : hours % 12;
+    const ampm = hours >= 12 ? "PM" : "AM";
+
+    return `${day}-${month}-${year} ${hours12}:${minutes} ${ampm}`;
   };
+
+
 
   const getDateLabel = (dateString: string) => {
     const orderDate = new Date(dateString);
@@ -411,6 +440,43 @@ const OrdersScreen: React.FC = () => {
   useEffect(() => {
     fetchAddress(orders[0]?.addressId as number);
   }, []);
+
+  const animationKey = `${selectedType}-${activeTab}-${finalOrders.length}`;
+
+
+  const handleCancelSubmit = async () => {
+    if (!cancelReason.trim()) {
+      Alert.alert("Reason Required", "Please enter a cancellation reason.");
+      return;
+    }
+
+    try {
+      let response;
+
+      if (selectedIsService) {
+        response = await apiClient.post(
+          `api/public/serviceBooking/bookingCancel/${selectedOrderId}?cancelReason=${encodeURIComponent(cancelReason)}`
+        );
+      } else {
+        response = await apiClient.post(
+          `api/public/order/orderCancel/${selectedOrderId}?cancelReason=${encodeURIComponent(cancelReason)}`
+        );
+      }
+
+
+      ToastAndroid.show("Order Cancelled Successfully", ToastAndroid.SHORT);
+
+      setCancelModalVisible(false);
+      setCancelReason("");
+
+      if (vendorData?.id) fetchOrders(vendorData.id);
+
+    } catch (error: any) {
+      console.log("Cancel Error:", error?.response?.data);
+      Alert.alert("Error", "Failed to cancel order");
+    }
+  };
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f5f7fa" }}>
@@ -552,17 +618,31 @@ const OrdersScreen: React.FC = () => {
       </View>
 
       <Animated.View
-        key={selectedType + activeTab}
+        key={animationKey}
         entering={SlideInRight.duration(250)}
         exiting={SlideOutLeft.duration(200)}
         style={{ flex: 1 }}
       >
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(20, insets.bottom) }}>
-          {loading ? (
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: Math.max(20, insets.bottom) }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#40916c"
+              colors={["#40916c"]}
+            />
+          }
+        >
+          {loading && !refreshing && (
             <ActivityIndicator size="large" color="#40916c" style={{ marginTop: 40 }} />
-          ) : dateKeys.length === 0 ? (
+          )}{dateKeys.length === 0 && !loading ? (
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center", marginTop: 40 }}>
-              <Text style={{ color: "#9ca3af", fontSize: 16 }}>No orders found.</Text>
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#555" }}>
+                No orders found
+              </Text>
             </View>
           ) : (
             dateKeys.map((dateKey) => (
@@ -576,7 +656,7 @@ const OrdersScreen: React.FC = () => {
                       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                         <View>
                           <Text style={{ fontSize: 15, fontWeight: "800", color: "#0f172a" }}>#{order.productOrderId}</Text>
-                          <Text style={{ fontSize: 12, color: "#6b7280" }}>{formatTime(order.createdDate)}</Text>
+                          <Text style={{ fontSize: 12, color: "#6b7280" }}>{formatDateTime(order.createdDate)}</Text>
                         </View>
 
                         {/* STATUS BADGE */}
@@ -767,8 +847,11 @@ const OrdersScreen: React.FC = () => {
                         >
                           {/* CANCEL BUTTON */}
                           <TouchableOpacity
-                            onPress={() => handleUpdateOrderStatus(order.id, order.orderStatus, "CANCELLED", order.isService)}
-                            style={{
+                            onPress={() => {
+                              setSelectedOrderId(order.id);
+                              setSelectedIsService(order.isService);
+                              setCancelModalVisible(true);
+                            }} style={{
                               flex: 1,
                               marginRight: 6,
                               backgroundColor: "#fee2e2",
@@ -811,6 +894,52 @@ const OrdersScreen: React.FC = () => {
             ))
           )}
         </ScrollView>
+
+        <Modal
+          visible={cancelModalVisible}
+          transparent
+          animationType="fade"
+        >
+          <View className="flex-1 bg-black/50 justify-center items-center px-4">
+            <View className="bg-white w-full rounded-2xl p-6">
+
+              <Text className="text-lg font-semibold text-gray-800 mb-3">
+                {selectedType === "Product" ? "Cancel Order" : "Cancel Services"}
+              </Text>
+
+              <Text className="text-gray-600 mb-2">
+                Enter cancellation reason:
+              </Text>
+
+              <TextInput
+                value={cancelReason}
+                onChangeText={setCancelReason}
+                placeholder="Type here..."
+                className="border border-gray-300 rounded-xl p-3 h-28 text-black"
+                multiline
+                textAlignVertical="top"
+              />
+
+              {/* Buttons */}
+              <View className="flex-row justify-end mt-5">
+
+                <TouchableOpacity
+                  onPress={() => setCancelModalVisible(false)}
+                  className="px-4 py-2 bg-gray-200 rounded-xl mr-3"
+                >
+                  <Text className="text-gray-700 font-medium">Close</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleCancelSubmit}
+                  className="px-4 py-2 bg-red-500 rounded-xl"
+                >
+                  <Text className="text-white font-medium">Submit</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </Animated.View>
     </SafeAreaView >
   );

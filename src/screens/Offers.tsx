@@ -117,9 +117,15 @@ const Offers = () => {
         console.log("Edit Offer:", id);
     };
 
-    const handleDelete = () => {
-        fetchOffers();
+    const handleDelete = (id: number) => {
+    
+        setOffers((prev) => prev.filter((item) => item.id !== id));
+
+        setTimeout(() => {
+            fetchOffers();
+        }, 300);
     };
+
 
 
     const fetchOffers = async () => {

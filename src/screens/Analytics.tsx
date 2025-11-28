@@ -7,6 +7,7 @@ import { PieChart } from "react-native-gifted-charts";
 import { useVendor } from "../context/VendorContext";
 import LinearGradient from "react-native-linear-gradient";
 import apiClient from "../api/apiBaseUrl";
+import { getMonthRange, getTodayRange, getWeekRange, getYearRange } from "../utils/DateRange";
 
 const Analytics = () => {
   const [selectedType, setSelectedType] = useState<"Product" | "Service">("Product");
@@ -16,6 +17,9 @@ const Analytics = () => {
   const [range, setRange] = useState("today");
   const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const cardStyle = "flex-1 bg-white rounded-xl p-4 border border-gray-300";
   const iconBox = "w-12 h-12 rounded-xl justify-center items-center mr-3";
@@ -58,35 +62,55 @@ const Analytics = () => {
     onPress: () => handleSlicePress(index),
   }));
 
-  const topProducts = [
-    { id: "1", name: "Premium Ficus", revenue: 24500, trend: "+12%" },
-    { id: "2", name: "Succulent Mix", revenue: 14400, trend: "+8%" },
-    { id: "3", name: "Organic Soil", revenue: 9600, trend: "+5%" },
-  ];
 
-  const fetchDashboardCounts = async () => {
+
+
+  const formatDate = (date: any) => {
+    return date.toISOString().split("T")[0];
+  };
+
+
+
+
+
+  const handleRangeChange = (value: any) => {
+    setRange(value);
+
+    let rangeValues = { startDate: "", endDate: "" };
+
+    if (value === "today") rangeValues = getTodayRange();
+    if (value === "weekly") rangeValues = getWeekRange();
+    if (value === "monthly") rangeValues = getMonthRange();
+    if (value === "yearly") rangeValues = getYearRange();
+
+    setStartDate(rangeValues.startDate);
+    setEndDate(rangeValues.endDate);
+
+    fetchDashboardCounts(rangeValues.startDate, rangeValues.endDate);
+  };
+
+
+
+  const fetchDashboardCounts = async (start: any, end: any) => {
     try {
       const response = await apiClient.get(
-        `/api/public/dashboard/totalCounts?vendorId=${vendorData?.id}`
+        `/api/public/dashboard/totalCounts?vendorId=${vendorData?.id}&startDate=${start}&endDate=${end}`
       );
 
-      console.log("Orders response:", response.data);
+      console.log("Dashboard response:", response.data);
 
-      const serviceCounts = response.data.counts[0]; // bookings/services
-      const orderCounts = response.data.counts[1];   // product orders
+      const serviceCounts = response.data.counts[0];
+      const orderCounts = response.data.counts[1];
 
       setKeyMetrics({
         totalOrders: orderCounts.totalOrders ?? 0,
         totalProducts: orderCounts.totalProducts ?? 0,
         totalProductCustomers: orderCounts.totalProductCustomers ?? 0,
         totalProductRevenue: orderCounts.totalProductRevenue ?? 0,
-
-
         totalServices: serviceCounts.totalServices ?? 0,
         totalBookings: serviceCounts.totalBookings ?? 0,
         totalServiceCustomers: serviceCounts.totalServiceCustomers ?? 0,
         totalServiceRevenue: serviceCounts.totalServiceRevenue ?? 0,
-
       });
 
     } catch (error) {
@@ -95,9 +119,14 @@ const Analytics = () => {
   };
 
 
+
   React.useEffect(() => {
-    fetchDashboardCounts();
-  }, []);
+    const { startDate, endDate } = getTodayRange();
+    setStartDate(startDate);
+    setEndDate(endDate);
+    fetchDashboardCounts(startDate, endDate);
+  }, [selectedType]);
+
 
   const animatePress = () => {
     Animated.sequence([
@@ -197,7 +226,7 @@ const Analytics = () => {
             <View className="bg-white rounded-xl px-2 h-11 border border-gray-300 justify-center">
               <Picker
                 selectedValue={range}
-                onValueChange={(v) => setRange(v)}
+                onValueChange={(v) => handleRangeChange(v)}
                 dropdownIconColor="#667eea"
                 style={{ height: 55, width: "100%", color: "#111827" }}
                 mode={Platform.OS === "ios" ? "dialog" : "dropdown"}

@@ -16,6 +16,7 @@ import { PieChart } from "react-native-gifted-charts";
 import LinearGradient from "react-native-linear-gradient";
 import { useVendor } from "../context/VendorContext";
 import apiClient from "../api/apiBaseUrl";
+import { getMonthRange, getTodayRange, getWeekRange, getYearRange } from "../utils/DateRange";
 
 const Customers = () => {
     const navigation = useNavigation<any>();
@@ -29,14 +30,17 @@ const Customers = () => {
     const [selectedSlices, setSelectedSlices] = useState<number | null>(null);
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+
 
     const baseColors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#f97316", "#6366f1"];
 
-    const fetchCustomerData = async () => {
+    const fetchCustomerData = async (start: any, end: any) => {
         try {
             setLoading(true);
-            const productRes = await apiClient.get(`api/public/dashboard/getOrderCustomers?vendorId=${vendorData?.id}`);
-            const serviceRes = await apiClient.get(`api/public/dashboard/getServiceCustomers?vendorId=${vendorData?.id}`);
+            const productRes = await apiClient.get(`api/public/dashboard/getOrderCustomers?vendorId=${vendorData?.id}&startDate=${start}&endDate=${end}`);
+            const serviceRes = await apiClient.get(`api/public/dashboard/getServiceCustomers?vendorId=${vendorData?.id}&startDate=${start}&endDate=${end}`);
 
             const productData = productRes.data[0] || {};
             const serviceData = serviceRes.data[0] || {};
@@ -51,8 +55,11 @@ const Customers = () => {
     };
 
     useEffect(() => {
-        fetchCustomerData();
-    }, [vendorData?.id]);
+        const { startDate, endDate } = getTodayRange();
+        setStartDate(startDate);
+        setEndDate(endDate);
+        fetchCustomerData(startDate, endDate);
+    }, [selectedType]);
 
     if (!customerData) return null;
 
@@ -97,6 +104,23 @@ const Customers = () => {
         const next = selectedSlices === idx ? null : idx;
         setSelectedSlices(next);
         animatePress();
+    };
+
+
+    const handleRangeChange = (value: any) => {
+        setRange(value);
+
+        let rangeValues = { startDate: "", endDate: "" };
+
+        if (value === "today") rangeValues = getTodayRange();
+        if (value === "weekly") rangeValues = getWeekRange();
+        if (value === "monthly") rangeValues = getMonthRange();
+        if (value === "yearly") rangeValues = getYearRange();
+
+        setStartDate(rangeValues.startDate);
+        setEndDate(rangeValues.endDate);
+
+        fetchCustomerData(rangeValues.startDate, rangeValues.endDate);
     };
 
     return (
@@ -161,7 +185,7 @@ const Customers = () => {
                             <View className="bg-white rounded-xl px-2 h-11 justify-center border border-gray-200 overflow-hidden">
                                 <Picker
                                     selectedValue={range}
-                                    onValueChange={(v) => setRange(v)}
+                                    onValueChange={(v) => handleRangeChange(v)}
                                     dropdownIconColor="#16a34a"
                                     style={{ height: 55, width: "100%", color: "#111827" }}
                                     mode={Platform.OS === "ios" ? "dialog" : "dropdown"}
@@ -294,7 +318,7 @@ const Customers = () => {
                     </Text>
 
                     {topCustomers && topCustomers.length > 0 ? (
-                        topCustomers.map((customer:any, idx:any) => (
+                        topCustomers.map((customer: any, idx: any) => (
                             <View
                                 key={idx}
                                 style={{
